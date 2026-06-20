@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Cosmos Forge"
+version = "1.0.0"
+id = "artifacts/cosmos-forge"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 19943
+
+[services.development]
+run = "pnpm --filter @workspace/cosmos-forge run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/cosmos-forge", "run", "build" ]
+publicDir = "artifacts/cosmos-forge/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "19943"
+BASE_PATH = "/"

@@ -55,14 +55,14 @@ export default function IntroScreen() {
         transition={{ duration: 2 }}
         className="z-10 text-center space-y-4 pointer-events-none"
       >
-        <h1 className="text-6xl font-serif font-bold text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary glow-text">
+        <h1 className="text-8xl font-serif font-bold text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary glow-text" style={{ fontSize: 'clamp(4rem, 10vw, 9rem)', lineHeight: 1.1 }}>
           cosmos forge
         </h1>
         <motion.p 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 2, duration: 2 }}
-          className="text-muted-foreground font-medium"
+          className="text-xl text-muted-foreground font-medium mt-4"
         >
           made by a girl named sen :)
         </motion.p>

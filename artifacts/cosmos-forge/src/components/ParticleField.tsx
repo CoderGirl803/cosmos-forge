@@ -33,8 +33,8 @@ export default function ParticleField() {
       initial.push({
         x: Math.random() * window.innerWidth * 0.8,
         y: Math.random() * window.innerHeight,
-        vx: (Math.random() - 0.5) * 2,
-        vy: (Math.random() - 0.5) * 2,
+        vx: (Math.random() - 0.5) * 5,
+        vy: (Math.random() - 0.5) * 5,
         type: 'H',
         radius: 2 + Math.random() * 2
       });
@@ -83,11 +83,11 @@ export default function ParticleField() {
           if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
           if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
 
-          // Random mutation (fusion simulation)
-          if (Math.random() < 0.001) {
+          // Random mutation (fusion simulation) — fast enough to reach Fe+Plasma in ~10s
+          if (Math.random() < 0.025) {
             const types: ParticleType[] = ['H','He','Li','C','N','O','Ne','Si','Fe','Plasma'];
             const currentIndex = types.indexOf(p.type);
-            if (currentIndex < types.length - 1 && Math.random() < 0.5) {
+            if (currentIndex < types.length - 1) {
               p.type = types[currentIndex + 1];
               checkDiscovered(p.type);
             }

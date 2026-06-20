@@ -3,6 +3,7 @@ import { useGameStore } from '../hooks/useGameStore';
 import IntroScreen from '../components/IntroScreen';
 import ParticleField from '../components/ParticleField';
 import CivilizationView from '../components/CivilizationView';
+import DisasterAlert from '../components/DisasterAlert';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function Game() {
@@ -20,10 +21,10 @@ export default function Game() {
         {phase === 'bigbang' && (
           <motion.div
             key="bigbang"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
+            initial={{ opacity: 1 }}
+            animate={{ opacity: [1, 1, 0] }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 1.5 }}
+            transition={{ duration: 0.35, times: [0, 0.6, 1] }}
             className="absolute inset-0 z-50 bg-white"
           />
         )}
@@ -37,6 +38,7 @@ export default function Game() {
         {phase === 'civilization' && (
           <motion.div key="civ" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 2 }} className="absolute inset-0">
             <CivilizationView />
+            <DisasterAlert />
           </motion.div>
         )}
 

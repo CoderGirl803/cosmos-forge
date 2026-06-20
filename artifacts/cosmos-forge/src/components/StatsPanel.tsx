@@ -17,11 +17,18 @@ export default function StatsPanel() {
     setEditing(false);
   };
 
-  const formatNumber = (num: number) => {
-    if (num >= 1e9) return (num / 1e9).toFixed(1) + 'B';
-    if (num >= 1e6) return (num / 1e6).toFixed(1) + 'M';
+  const formatPopulation = (num: number) => {
+    if (num === 0) return '0';
+    if (num >= 1e9) return (num / 1e9).toFixed(3) + ' billion';
+    if (num >= 1e6) return (num / 1e6).toFixed(2) + 'M';
     if (num >= 1e3) return (num / 1e3).toFixed(1) + 'k';
-    return num.toString();
+    return num.toLocaleString();
+  };
+  const formatYear = (num: number) => {
+    if (num >= 1e9) return (num / 1e9).toFixed(2) + 'B yrs';
+    if (num >= 1e6) return (num / 1e6).toFixed(1) + 'M yrs';
+    if (num >= 1e3) return (num / 1e3).toFixed(1) + 'k yrs';
+    return num + ' yrs';
   };
 
   const ProgressBar = ({ value, color, glow }: { value: number; color: string; glow: string }) => (
@@ -74,7 +81,7 @@ export default function StatsPanel() {
             <span className="text-xs text-white/30 group-hover:text-white/60 transition-colors">✏️</span>
           </button>
         )}
-        <div className="text-white/40 text-xs font-mono tracking-wider mt-1">year {formatNumber(year)}</div>
+        <div className="text-white/40 text-xs font-mono tracking-wider mt-1">{formatYear(year)}</div>
       </div>
 
       {/* Era badge */}
@@ -95,7 +102,7 @@ export default function StatsPanel() {
         <div className="space-y-1.5">
           <div className="flex justify-between text-sm">
             <span className="flex items-center gap-2 text-white/80"><span>🧬</span> population</span>
-            <span className="font-mono text-white/60">{formatNumber(population)}</span>
+            <span className="font-mono text-white/60 text-right">{formatPopulation(population)}</span>
           </div>
         </div>
 

@@ -98,77 +98,98 @@ export const SIGNAL_RESPONSES: SignalResponse[] = [
   }
 ];
 
+export interface DisasterInfo {
+  icon: string;
+  title: string;
+  description: string;
+  deathPercent: number;
+  energyLoss: number;
+  healthLoss: number;
+}
+
+export const DISASTERS: DisasterInfo[] = [
+  { icon: '🌊', title: 'megatsunami', description: 'coastal cities swallowed by 300-metre walls of water.', deathPercent: 18, energyLoss: 12, healthLoss: 8 },
+  { icon: '🌪️', title: 'hypercane', description: 'a category-6 superstorm the size of a continent tears across the surface.', deathPercent: 22, energyLoss: 18, healthLoss: 12 },
+  { icon: '🌋', title: 'supervolcano', description: 'ash blocks the sun. crops fail. winter lasts a decade.', deathPercent: 35, energyLoss: 15, healthLoss: 25 },
+  { icon: '☄️', title: 'meteor shower', description: 'hundreds of meteors rain across the surface. cities burn.', deathPercent: 10, energyLoss: 8, healthLoss: 7 },
+  { icon: '⚡', title: 'geomagnetic storm', description: 'solar plasma fries every power grid on the planet. total blackout.', deathPercent: 3, energyLoss: 45, healthLoss: 2 },
+  { icon: '🔥', title: 'wildfire cascade', description: 'climate feedback triggers continental wildfires. the sky is orange.', deathPercent: 14, energyLoss: 10, healthLoss: 18 },
+  { icon: '❄️', title: 'sudden ice age', description: 'albedo feedback kicks in. average temperatures drop 20°C overnight.', deathPercent: 28, energyLoss: 12, healthLoss: 22 },
+  { icon: '🌊', title: 'sea level surge', description: 'glaciers collapse. coastal infrastructure drowns under rising seas.', deathPercent: 16, energyLoss: 8, healthLoss: 14 },
+  { icon: '💨', title: 'toxic atmospheric event', description: 'volcanic outgassing fills the lower atmosphere with sulfur dioxide.', deathPercent: 20, energyLoss: 5, healthLoss: 30 },
+];
+
 export const SUGGESTIONS: Suggestion[] = [
   {
     id: 'spark_life', icon: '🦠', title: 'spark life',
     description: 'seed unicellular organisms in the primordial soup.',
     unlockYear: 0, unlocked: true, completed: false,
-    effect: (s) => ({ population: s.population + 10, health: 95 })
+    effect: (s) => ({ population: 500_000, health: 95 })
   },
   {
     id: 'multicellular', icon: '🐛', title: 'multicellular leap',
-    description: 'evolve complex cells and simple creatures.',
-    unlockYear: 500000000, unlocked: false, completed: false,
-    effect: (s) => ({ population: s.population + 1000, food: s.food + 10 })
+    description: 'guide cells to cooperate and form complex organisms.',
+    unlockYear: 1_000_000_000, unlocked: false, completed: false,
+    effect: (s) => ({ population: Math.max(s.population * 50, 50_000_000), food: Math.min(100, s.food + 8) })
   },
   {
     id: 'fire', icon: '🔥', title: 'teach fire',
-    description: 'early beings discover the warmth of flames.',
-    unlockYear: 3000000, unlocked: false, completed: false,
-    effect: (s) => ({ tech: s.tech + 10, energy: s.energy + 5 })
+    description: 'early hominids learn to tame the flame.',
+    unlockYear: 3_500_000_000, unlocked: false, completed: false,
+    effect: (s) => ({ tech: s.tech + 8, energy: Math.min(100, s.energy + 5), population: Math.max(s.population * 5, 200_000_000) })
   },
   {
     id: 'agriculture', icon: '🌾', title: 'agriculture',
-    description: 'settle down and farm the land.',
-    unlockYear: 10000, unlocked: false, completed: false,
-    effect: (s) => ({ food: s.food + 30, population: s.population * 2, era: 'ancient' as Era })
-  },
-  {
-    id: 'cities', icon: '🏛️', title: 'first cities',
-    description: 'build great walls and civilization centers.',
-    unlockYear: 3000, unlocked: false, completed: false,
-    effect: (s) => ({ population: s.population * 2, tech: s.tech + 15 })
+    description: 'settle the land and grow food intentionally.',
+    unlockYear: 4_000_000_000, unlocked: false, completed: false,
+    effect: (s) => ({ food: Math.min(100, s.food + 20), population: Math.max(s.population * 3, 1_000_000_000), era: 'ancient' as Era })
   },
   {
     id: 'writing', icon: '📜', title: 'writing',
-    description: 'develop written language to store knowledge.',
-    unlockYear: 2000, unlocked: false, completed: false,
-    effect: (s) => ({ tech: s.tech + 20 })
+    description: 'develop written language to store knowledge across generations.',
+    unlockYear: 4_200_000_000, unlocked: false, completed: false,
+    effect: (s) => ({ tech: Math.min(100, s.tech + 12) })
+  },
+  {
+    id: 'cities', icon: '🏛️', title: 'first cities',
+    description: 'organize people into dense centers of trade and power.',
+    unlockYear: 4_300_000_000, unlocked: false, completed: false,
+    effect: (s) => ({ population: Math.floor(s.population * 1.5 + 2_000_000_000), tech: Math.min(100, s.tech + 10) })
   },
   {
     id: 'industrial', icon: '⚙️', title: 'industrial revolution',
-    description: 'machines, factories, and steam power.',
-    unlockYear: 1760, unlocked: false, completed: false,
-    effect: (s) => ({ energy: s.energy + 40, health: s.health - 15, tech: s.tech + 20, era: 'industrial' as Era })
+    description: 'machines, factories, and steam power reshape the world.',
+    unlockYear: 4_500_000_000, unlocked: false, completed: false,
+    effect: (s) => ({ energy: Math.min(100, s.energy + 30), health: Math.max(10, s.health - 15), tech: Math.min(100, s.tech + 15), era: 'industrial' as Era })
   },
   {
     id: 'digital', icon: '💻', title: 'digital age',
-    description: 'computers, silicon, and the internet.',
-    unlockYear: 1970, unlocked: false, completed: false,
-    effect: (s) => ({ tech: s.tech + 30, energy: s.energy + 20, era: 'digital' as Era })
+    description: 'silicon, software, and a planet-wide nervous system.',
+    unlockYear: 4_700_000_000, unlocked: false, completed: false,
+    effect: (s) => ({ tech: Math.min(100, s.tech + 20), energy: Math.min(100, s.energy + 15), era: 'digital' as Era })
   },
   {
     id: 'space', icon: '🚀', title: 'space age',
-    description: 'reach for the stars and beyond.',
-    unlockYear: 2000, unlocked: false, completed: false,
-    effect: (s) => ({ tech: s.tech + 20, era: 'cosmic' as Era })
+    description: 'leave the cradle and reach for the stars.',
+    unlockYear: 5_000_000_000, unlocked: false, completed: false,
+    effect: (s) => ({ tech: Math.min(100, s.tech + 15), era: 'cosmic' as Era })
   },
   {
     id: 'ai', icon: '🤖', title: 'ai singularity',
-    description: 'superintelligent synthetic life emerges.',
-    unlockYear: 2045, unlocked: false, completed: false,
-    effect: (s) => ({ tech: 100, energy: s.energy + 30 })
+    description: 'a mind greater than the sum of all minds emerges.',
+    unlockYear: 5_500_000_000, unlocked: false, completed: false,
+    effect: (s) => ({ tech: 100, energy: Math.min(100, s.energy + 25) })
   },
   {
     id: 'dyson', icon: '🌌', title: 'dyson sphere',
-    description: 'harness the full energy of your star.',
-    unlockYear: 2200, unlocked: false, completed: false,
+    description: 'encircle your star and drink its full radiance.',
+    unlockYear: 7_000_000_000, unlocked: false, completed: false,
     effect: (s) => ({ energy: 100, tech: 100 })
   },
   {
     id: 'federation', icon: '🪐', title: 'galactic federation',
-    description: 'join the cosmic community of civilizations.',
-    unlockYear: 2500, unlocked: false, completed: false,
+    description: 'at last — you join the quiet chorus of the cosmos.',
+    unlockYear: 10_000_000_000, unlocked: false, completed: false,
     effect: (s) => ({ win: true })
   }
 ];

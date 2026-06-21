@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 import { execFileSync } from "node:child_process";
 
+const args = process.argv.slice(2).filter((arg) => arg !== "--");
 const message =
-  process.argv.slice(2).join(" ").trim() ||
+  args.join(" ").trim() ||
   `Save progress ${new Date().toISOString().slice(0, 16).replace("T", " ")}`;
 
 const run = (command, args, options = {}) => {

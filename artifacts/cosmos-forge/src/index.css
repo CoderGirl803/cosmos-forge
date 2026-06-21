@@ -123,7 +123,7 @@
 
 .star-cursor,
 .star-cursor * {
-  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cpath fill='%23f8fafc' stroke='%230f172a' stroke-width='1.4' d='M14 1.8l3.3 8.4 8.9 3.3-8.9 3.3-3.3 8.4-3.3-8.4-8.9-3.3 8.9-3.3z'/%3E%3C/svg%3E") 14 14, auto;
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='30' height='30' viewBox='0 0 30 30'%3E%3Cpath fill='%23f8fafc' stroke='%230f172a' stroke-width='1.25' d='M15 2.2l3.3 8.2 8.8.6-6.8 5.6 2.1 8.6-7.4-4.7-7.4 4.7 2.1-8.6L2.9 11l8.8-.6z'/%3E%3C/svg%3E") 15 15, auto;
 }
 
 .glass-panel {

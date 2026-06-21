@@ -115,8 +115,11 @@ export default function CivilizationView() {
   const [clickedPlanet, setClickedPlanet] = useState<SolarObj | null>(null);
   const [signalSending, setSignalSending] = useState(false);
   const [playMs, setPlayMs] = useState(0);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
 
   const planetBodyRef = useRef<HTMLDivElement>(null);
+  const panStartRef = useRef({ x: 0, y: 0, panX: 0, panY: 0, moved: false });
 
   // Auto-advance time
   useEffect(() => {
@@ -146,6 +149,27 @@ export default function CivilizationView() {
     e.preventDefault();
     setZoom(z => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z - e.deltaY * 0.0012)));
   }, []);
+
+  const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if ((e.target as HTMLElement).closest('button')) return;
+    panStartRef.current = { x: e.clientX, y: e.clientY, panX: pan.x, panY: pan.y, moved: false };
+    setIsPanning(true);
+    e.currentTarget.setPointerCapture(e.pointerId);
+  }, [pan.x, pan.y]);
+
+  const handlePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isPanning) return;
+    const dx = e.clientX - panStartRef.current.x;
+    const dy = e.clientY - panStartRef.current.y;
+    if (Math.hypot(dx, dy) > 4) panStartRef.current.moved = true;
+    setPan({ x: panStartRef.current.panX + dx, y: panStartRef.current.panY + dy });
+  }, [isPanning]);
+
+  const handlePointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isPanning) return;
+    setIsPanning(false);
+    e.currentTarget.releasePointerCapture(e.pointerId);
+  }, [isPanning]);
 
   const playerOrbitR = 430 - Math.min(1, playMs / 600_000) * 140 - Math.min(1, orbitDecay) * 120;
   const galaxyOpacity = Math.min(1, Math.max(0, (0.18 - zoom) / 0.08));
@@ -281,8 +305,14 @@ export default function CivilizationView() {
         <div
           className="flex-1 relative overflow-hidden flex items-center justify-center"
           onWheel={handleWheel}
-          style={{ cursor: 'crosshair' }}
-          onClick={() => setClickedPlanet(null)}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerUp}
+          style={{ cursor: isPanning ? 'grabbing' : 'grab' }}
+          onClick={() => {
+            if (!panStartRef.current.moved) setClickedPlanet(null);
+          }}
         >
           {/* Galaxy layer when zoomed far out */}
           <div className="absolute inset-0 z-[1] pointer-events-none" style={{ opacity: galaxyOpacity, transition: 'opacity 0.25s' }}>
@@ -319,7 +349,7 @@ export default function CivilizationView() {
               position: 'absolute',
               width: C * 2, height: C * 2,
               top: '50%', left: '50%',
-              transform: `translate(calc(-50% + ${systemOffsetX}px), -50%) scale(${zoom})`,
+              transform: `translate(calc(-50% + ${systemOffsetX + pan.x}px), calc(-50% + ${pan.y}px)) scale(${zoom})`,
               transformOrigin: 'center center',
               pointerEvents: 'none',
             }}
@@ -729,10 +759,11 @@ export default function CivilizationView() {
         style={{ borderTop: '1px solid rgba(255,255,255,0.06)', background: 'rgba(10,11,30,0.8)', backdropFilter: 'blur(12px)' }}>
         <button
           onClick={() => setPlaying(p => !p)}
-          className="p-2.5 rounded-full transition-colors"
+          className="px-3 py-2 rounded-full transition-colors flex items-center gap-2 text-xs font-medium"
           style={{ color: '#a78bfa', background: playing ? 'rgba(124,58,237,0.15)' : 'transparent' }}
         >
           {playing ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
+          {playing ? 'pause' : 'resume'}
         </button>
 
         <div className="w-px h-6 bg-white/10 mx-1" />

@@ -79,7 +79,7 @@ export default function SignalPanel() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[90] flex items-center justify-center p-4"
+            className="fixed inset-0 z-[90] flex items-center justify-center px-4 pt-4 pb-24"
             style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)' }}
             onClick={() => setOpen(false)}
           >
@@ -88,7 +88,7 @@ export default function SignalPanel() {
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.9, y: 20 }}
               onClick={e => e.stopPropagation()}
-              className="w-full max-w-[520px] max-h-[min(86vh,620px)] overflow-hidden rounded-2xl p-6"
+              className="w-full max-w-[520px] max-h-[calc(100vh-8rem)] overflow-y-auto rounded-2xl p-6"
               style={{
                 background: 'rgba(10,11,30,0.95)',
                 border: '1.5px solid rgba(124,58,237,0.4)',
@@ -98,7 +98,7 @@ export default function SignalPanel() {
               <h3 className="text-lg font-bold text-white mb-1">📡 send a signal</h3>
               <p className="text-white/50 text-xs mb-5">choose a target. responses may take time. some bring gifts. some bring war.</p>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-5 max-h-[42vh] overflow-y-auto pr-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-5 max-h-[34vh] overflow-y-auto pr-1">
                 {OTHER_PLANETS.map(planet => (
                   <button
                     key={planet}
@@ -148,7 +148,7 @@ export default function SignalPanel() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[95] flex items-center justify-center p-4"
+            className="fixed inset-0 z-[95] flex items-center justify-center px-4 pt-4 pb-24"
             style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }}
           >
             <motion.div
@@ -156,7 +156,7 @@ export default function SignalPanel() {
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.8, opacity: 0 }}
               transition={{ type: 'spring', stiffness: 300, damping: 22 }}
-              className="max-w-md w-full mx-4 rounded-2xl p-8 text-center"
+              className="max-w-md w-full mx-4 max-h-[calc(100vh-8rem)] overflow-y-auto rounded-2xl p-8 text-center"
               style={{
                 background: 'rgba(10,11,30,0.97)',
                 border: `2px solid ${typeColors[resp.type] ?? '#475569'}`,

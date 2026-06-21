@@ -149,6 +149,7 @@ export default function CivilizationView() {
 
   const playerOrbitR = 430 - Math.min(1, playMs / 600_000) * 140 - Math.min(1, orbitDecay) * 120;
   const galaxyOpacity = Math.min(1, Math.max(0, (0.18 - zoom) / 0.08));
+  const stellarVisibility = Math.min(1, Math.max(0, (0.86 - zoom) / 0.28));
 
   const getPlanetCenter = useCallback(() => {
     if (!planetBodyRef.current) return null;
@@ -322,7 +323,12 @@ export default function CivilizationView() {
             }}
           >
             {/* HOME STAR at center — behind planet */}
-            <div style={{ position: 'absolute', left: C, top: C, transform: 'translate(-50%, -50%)', zIndex: 1 }}>
+            <div style={{
+              position: 'absolute', left: C, top: C, transform: 'translate(-50%, -50%)',
+              zIndex: 1,
+              opacity: stellarVisibility,
+              transition: 'opacity 0.25s',
+            }}>
               {/* Outer corona glow */}
               <div style={{
                 position: 'absolute', borderRadius: '50%',
@@ -394,7 +400,7 @@ export default function CivilizationView() {
             })}
 
             {/* Black hole (when alert active) */}
-            {blackHoleAlert && (
+            {blackHoleAlert && zoom < 0.86 && (
               <motion.div
                 initial={{ opacity: 0, scale: 0.3 }} animate={{ opacity: 1, scale: 1 }}
                 style={{ position: 'absolute', left: 550, top: 550, zIndex: 3 }}

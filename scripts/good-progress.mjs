@@ -1,12 +1,9 @@
 #!/usr/bin/env node
 import { execFileSync } from "node:child_process";
 
-const message = process.argv.slice(2).join(" ").trim();
-
-if (!message) {
-  console.error('Usage: pnpm run progress:push -- "short commit message"');
-  process.exit(1);
-}
+const message =
+  process.argv.slice(2).join(" ").trim() ||
+  `Save progress ${new Date().toISOString().slice(0, 16).replace("T", " ")}`;
 
 const run = (command, args, options = {}) => {
   execFileSync(command, args, { stdio: "inherit", ...options });
@@ -38,6 +35,7 @@ if (!status) {
   process.exit(0);
 }
 
+console.log(`Saving progress on ${branch}: ${message}`);
 run("git", ["add", "-A"]);
 run("git", ["commit", "-m", message]);
 run("git", ["push", "-u", "origin", branch]);

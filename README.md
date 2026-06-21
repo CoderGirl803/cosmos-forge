@@ -69,7 +69,13 @@ Use this helper from a feature branch when you want to save good progress:
 pnpm run progress:push -- "describe the progress"
 ```
 
-It runs typecheck and the app build, commits all local changes, and pushes the current branch. It refuses to run on `main` or `master`.
+Agents can also use the automatic-message form:
+
+```sh
+pnpm run progress:auto
+```
+
+Both forms run typecheck and the app build, commit local changes, and push the current branch. They refuse to run on `main` or `master`.
 
 Pull requests with the `automerge` label are merged by GitHub Actions after CI passes, as long as they are not drafts and come from the same repository.
 

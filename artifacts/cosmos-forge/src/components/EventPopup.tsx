@@ -12,6 +12,31 @@ const typeStyles: Record<string, { border: string; glow: string; bg: string }> =
   signal:    { border: '#7c3aed', glow: 'rgba(124,58,237,0.3)',   bg: 'rgba(124,58,237,0.05)' },
 };
 
+// Deterministic social-proof labels based on number of choices + index
+function choiceMeta(totalChoices: number, idx: number, type: string): { label: string; color: string } | null {
+  if (totalChoices < 2) return null;
+  if (type === 'paradox') {
+    if (idx === 0) return { label: 'most find comfort here', color: 'rgba(34,211,238,0.55)' };
+    if (idx === totalChoices - 1 && totalChoices > 2) return { label: 'only 8% choose this', color: 'rgba(100,116,139,0.5)' };
+    return null;
+  }
+  if (type === 'extinction') {
+    if (idx === 0) return { label: 'most agree — safer', color: 'rgba(34,197,94,0.55)' };
+    if (idx === totalChoices - 1) return { label: 'most avoid — very risky', color: 'rgba(239,68,68,0.55)' };
+    if (totalChoices === 3 && idx === 1) return { label: '37% choose this', color: 'rgba(251,191,36,0.5)' };
+    return null;
+  }
+  if (type === 'negative') {
+    if (idx === 0) return { label: 'most agree', color: 'rgba(34,197,94,0.5)' };
+    return null;
+  }
+  if (type === 'positive') {
+    if (idx === totalChoices - 1) return { label: 'bold choice', color: 'rgba(251,191,36,0.55)' };
+    return null;
+  }
+  return null;
+}
+
 export default function EventPopup({ event }: { event: GameEvent | null }) {
   const { resolveEvent } = useGameStore();
 
@@ -43,10 +68,15 @@ export default function EventPopup({ event }: { event: GameEvent | null }) {
               style={{ background: typeStyles[event.type]?.border ?? '#475569' }}
             />
 
-            {/* Extinction badge */}
+            {/* Type badge */}
             {event.type === 'extinction' && (
               <div className="mb-4 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold text-red-300" style={{ background: 'rgba(220,38,38,0.2)', border: '1px solid rgba(220,38,38,0.4)' }}>
                 ⚠️ extinction-level event
+              </div>
+            )}
+            {event.type === 'paradox' && (
+              <div className="mb-4 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold text-cyan-300" style={{ background: 'rgba(34,211,238,0.1)', border: '1px solid rgba(34,211,238,0.3)' }}>
+                🧠 philosophical paradox
               </div>
             )}
 
@@ -55,26 +85,39 @@ export default function EventPopup({ event }: { event: GameEvent | null }) {
               <h2 className="text-2xl font-bold text-white">{event.title}</h2>
               <p className="text-white/65 text-sm leading-relaxed max-w-sm">{event.description}</p>
 
-              <div className="w-full space-y-2.5 pt-4">
-                {event.choices?.map((choice, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => {
-                      const updates = choice.action(useGameStore.getState());
-                      resolveEvent(updates);
-                    }}
-                    className="w-full py-3 px-5 rounded-xl text-sm font-medium transition-all hover:scale-[1.02] active:scale-[0.98] text-left flex items-center gap-3"
-                    style={{
-                      background: 'rgba(255,255,255,0.04)',
-                      border: '1px solid rgba(255,255,255,0.08)',
-                      color: '#e2e8f0'
-                    }}
-                    onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.09)')}
-                    onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.04)')}
-                  >
-                    <span>{choice.label}</span>
-                  </button>
-                ))}
+              <div className="w-full space-y-2 pt-4">
+                {event.choices?.map((choice, idx) => {
+                  const meta = choiceMeta(event.choices?.length ?? 0, idx, event.type);
+                  return (
+                    <div key={idx} className="relative">
+                      <button
+                        onClick={() => {
+                          const updates = choice.action(useGameStore.getState());
+                          resolveEvent(updates);
+                        }}
+                        className="w-full py-3 px-5 rounded-xl text-sm font-medium transition-all hover:scale-[1.02] active:scale-[0.98] text-left"
+                        style={{
+                          background: 'rgba(255,255,255,0.04)',
+                          border: '1px solid rgba(255,255,255,0.08)',
+                          color: '#e2e8f0',
+                          paddingBottom: meta ? '22px' : undefined,
+                        }}
+                        onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.09)')}
+                        onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.04)')}
+                      >
+                        {choice.label}
+                        {meta && (
+                          <span
+                            className="absolute bottom-1.5 right-3 text-xs"
+                            style={{ color: meta.color, fontStyle: 'italic', pointerEvents: 'none' }}
+                          >
+                            {meta.label}
+                          </span>
+                        )}
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </motion.div>

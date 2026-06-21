@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react';
-import { motion, AnimatePresence, PanInfo } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useGameStore } from '../hooks/useGameStore';
 import StatsPanel from './StatsPanel';
 import EventLog from './EventLog';
@@ -7,69 +7,126 @@ import EventPopup from './EventPopup';
 import SignalPanel from './SignalPanel';
 import { Play, Pause, FastForward } from 'lucide-react';
 
-const MIN_ZOOM = 0.15;
+const MIN_ZOOM = 0.13;
 const MAX_ZOOM = 2.0;
-const CONTAINER = 4000;
-const C = CONTAINER / 2; // 2000 = center
+const C = 2000;
 
 interface SolarObj {
-  id: string; x: number; y: number; size: number;
-  color: string; bg: string; label: string;
-  type: 'rock' | 'smallPlanet' | 'largePlanet' | 'sun';
+  id: string;
+  orbitR: number;
+  orbitDur: number;
+  startAngle: number;
+  size: number;
+  bg: string;
+  color: string;
+  label: string;
+  lifeChance: number;
+  signalTarget?: string;
+  type: 'rock' | 'planet' | 'gas';
 }
 
 const SOLAR_OBJS: SolarObj[] = [
-  { id: 'r1', x: 1250, y: 1050, size: 18, color: '#9ca3af', bg: 'radial-gradient(circle at 40% 30%, #9ca3af, #4b5563)', label: 'barren rock', type: 'rock' },
-  { id: 'r2', x: 2750, y: 1100, size: 14, color: '#78716c', bg: 'radial-gradient(circle at 40% 30%, #a8a29e, #44403c)', label: 'asteroid', type: 'rock' },
-  { id: 'r3', x: 1100, y: 2850, size: 22, color: '#6b7280', bg: 'radial-gradient(circle at 35% 35%, #9ca3af, #374151)', label: 'iron rock', type: 'rock' },
-  { id: 'r4', x: 2900, y: 2900, size: 15, color: '#92400e', bg: 'radial-gradient(circle at 40% 30%, #b45309, #78350f)', label: 'scorched rock', type: 'rock' },
-  { id: 'p1', x: 650, y: 2000, size: 52, color: '#ef4444', bg: 'radial-gradient(circle at 35% 30%, #f87171, #991b1b, #7f1d1d)', label: 'ember world', type: 'smallPlanet' },
-  { id: 'p2', x: 3350, y: 1950, size: 60, color: '#f97316', bg: 'radial-gradient(circle at 35% 30%, #fb923c, #c2410c, #9a3412)', label: 'amber planet', type: 'smallPlanet' },
-  { id: 'p3', x: 2000, y: 400, size: 45, color: '#60a5fa', bg: 'radial-gradient(circle at 35% 30%, #93c5fd, #1d4ed8, #1e3a8a)', label: 'frozen world', type: 'smallPlanet' },
-  { id: 'gg', x: 3500, y: 3400, size: 115, color: '#fbbf24', bg: 'radial-gradient(circle at 35% 30%, #fef08a, #f59e0b, #b45309, #78350f)', label: 'gas giant', type: 'largePlanet' },
-  { id: 'sun2', x: 300, y: 280, size: 155, color: '#fef9c3', bg: 'radial-gradient(circle, #fffbeb, #fef08a, #fde047, #facc15)', label: 'distant star', type: 'sun' },
+  {
+    id: 'hot_rock', orbitR: 240, orbitDur: 22, startAngle: 1.1, size: 9,
+    color: '#9ca3af', bg: 'radial-gradient(circle at 40% 30%, #d1d5db, #4b5563)',
+    label: 'scorched rock', lifeChance: 0, type: 'rock',
+  },
+  {
+    id: 'venus_like', orbitR: 370, orbitDur: 44, startAngle: 3.8, size: 22,
+    color: '#f97316', bg: 'radial-gradient(circle at 35% 30%, #fdba74, #c2410c, #7c2d12)',
+    label: 'volcanic world', lifeChance: 0.5, signalTarget: 'gliese 667c', type: 'planet',
+  },
+  {
+    id: 'mars_like', orbitR: 680, orbitDur: 88, startAngle: 1.4, size: 17,
+    color: '#ef4444', bg: 'radial-gradient(circle at 35% 30%, #f87171, #991b1b)',
+    label: 'kepler-452b', lifeChance: 4, signalTarget: 'kepler-452b', type: 'planet',
+  },
+  {
+    id: 'ice_rock', orbitR: 940, orbitDur: 170, startAngle: 5.2, size: 10,
+    color: '#94a3b8', bg: 'radial-gradient(circle at 40% 30%, #e2e8f0, #334155)',
+    label: 'ice asteroid', lifeChance: 0, type: 'rock',
+  },
+  {
+    id: 'debris', orbitR: 1010, orbitDur: 185, startAngle: 2.3, size: 7,
+    color: '#78716c', bg: 'radial-gradient(circle at 40% 30%, #a8a29e, #292524)',
+    label: 'debris', lifeChance: 0, type: 'rock',
+  },
+  {
+    id: 'gas_giant', orbitR: 1350, orbitDur: 320, startAngle: 4.1, size: 90,
+    color: '#fbbf24', bg: 'radial-gradient(circle at 35% 30%, #fef9c3, #f59e0b, #b45309, #78350f)',
+    label: 'nova-7', lifeChance: 9, signalTarget: 'nova-7', type: 'gas',
+  },
+  {
+    id: 'ringed', orbitR: 1780, orbitDur: 520, startAngle: 0.6, size: 64,
+    color: '#a78bfa', bg: 'radial-gradient(circle at 35% 30%, #ddd6fe, #7c3aed, #4c1d95)',
+    label: 'tau ceti e', lifeChance: 3, signalTarget: 'tau ceti e', type: 'planet',
+  },
+  {
+    id: 'ice_giant', orbitR: 2150, orbitDur: 750, startAngle: 2.9, size: 46,
+    color: '#22d3ee', bg: 'radial-gradient(circle at 35% 30%, #a5f3fc, #0891b2, #1e3a8a)',
+    label: 'trappist-1d', lifeChance: 7, signalTarget: 'trappist-1d', type: 'planet',
+  },
+  {
+    id: 'far_ice', orbitR: 2550, orbitDur: 1300, startAngle: 4.8, size: 30,
+    color: '#60a5fa', bg: 'radial-gradient(circle at 35% 30%, #bfdbfe, #3b82f6, #1e3a8a)',
+    label: 'proxima centauri b', lifeChance: 13, signalTarget: 'proxima centauri b', type: 'planet',
+  },
 ];
 
-const DRAGGABLE_ROCKS = [
-  { id: 'dr1', dx: -290, dy: -230, size: 18, color: '#9ca3af', bg: 'radial-gradient(circle at 40% 30%, #9ca3af, #374151)', label: 'stray rock' },
-  { id: 'dr2', dx: 260, dy: -200, size: 14, color: '#a8a29e', bg: 'radial-gradient(circle at 40% 30%, #d6d3d1, #57534e)', label: 'meteorite' },
-  { id: 'dr3', dx: -260, dy: 240, size: 22, color: '#6b7280', bg: 'radial-gradient(circle at 35% 35%, #9ca3af, #374151)', label: 'debris' },
-  { id: 'dr4', dx: 280, dy: 260, size: 38, color: '#f97316', bg: 'radial-gradient(circle at 35% 30%, #fb923c, #9a3412)', label: 'proto-moon' },
-];
+function lifeColor(pct: number) {
+  if (pct === 0) return 'rgba(100,116,139,0.6)';
+  if (pct < 3) return 'rgba(251,191,36,0.75)';
+  if (pct < 9) return 'rgba(251,146,60,0.75)';
+  return 'rgba(34,197,94,0.80)';
+}
+
+function lifeLabel(pct: number) {
+  if (pct === 0) return 'no life signals';
+  if (pct < 3) return `${pct}% trace chemistry`;
+  if (pct < 9) return `${pct}% possible life`;
+  return `${pct}% promising!`;
+}
 
 export default function CivilizationView() {
   const {
     advanceTime, activeEvent, activeDisaster, planetName, starName,
-    addLog, addMoon, moons, blackHoleAlert, escapeBlackHole, tickBlackHole,
+    addLog, addMoon, moons,
+    blackHoleAlert, escapeBlackHole, tickBlackHole,
+    pandemicAlert, escapePandemic, tickPandemic,
+    nuclearAlert, escapeNuclear, tickNuclear,
+    sendSignal, deliverSignalResponse,
   } = useGameStore();
+
   const [playing, setPlaying] = useState(false);
   const [zoom, setZoom] = useState(1.0);
   const [capturedRocks, setCapturedRocks] = useState<Set<string>>(new Set());
-  const [bhPulse, setBhPulse] = useState(false);
+  const [alertPulse, setAlertPulse] = useState(false);
+  const [hoveredPlanet, setHoveredPlanet] = useState<string | null>(null);
+  const [clickedPlanet, setClickedPlanet] = useState<SolarObj | null>(null);
+  const [signalSending, setSignalSending] = useState(false);
 
   const planetBodyRef = useRef<HTMLDivElement>(null);
-  const viewportRef = useRef<HTMLDivElement>(null);
 
   // Auto-advance time
   useEffect(() => {
     if (!playing) return;
-    const interval = setInterval(() => advanceTime(10), 1200);
-    return () => clearInterval(interval);
+    const iv = setInterval(() => advanceTime(10), 1200);
+    return () => clearInterval(iv);
   }, [playing, advanceTime]);
 
-  // Black hole countdown tick
-  useEffect(() => {
-    if (!blackHoleAlert) return;
-    const timer = setInterval(tickBlackHole, 1000);
-    return () => clearInterval(timer);
-  }, [blackHoleAlert, tickBlackHole]);
+  // Countdown ticks
+  useEffect(() => { if (!blackHoleAlert) return; const iv = setInterval(tickBlackHole, 1000); return () => clearInterval(iv); }, [blackHoleAlert, tickBlackHole]);
+  useEffect(() => { if (!pandemicAlert) return; const iv = setInterval(tickPandemic, 1000); return () => clearInterval(iv); }, [pandemicAlert, tickPandemic]);
+  useEffect(() => { if (!nuclearAlert) return; const iv = setInterval(tickNuclear, 1000); return () => clearInterval(iv); }, [nuclearAlert, tickNuclear]);
 
-  // Black hole pulse urgency
+  // Alert pulse
+  const activeAlert = blackHoleAlert ?? pandemicAlert ?? nuclearAlert;
   useEffect(() => {
-    if (!blackHoleAlert) { setBhPulse(false); return; }
-    const interval = setInterval(() => setBhPulse(p => !p), blackHoleAlert.timeLeft < 10 ? 300 : 700);
-    return () => clearInterval(interval);
-  }, [blackHoleAlert]);
+    if (!activeAlert) { setAlertPulse(false); return; }
+    const urgency = activeAlert.timeLeft < 10 ? 250 : 650;
+    const iv = setInterval(() => setAlertPulse(p => !p), urgency);
+    return () => clearInterval(iv);
+  }, [activeAlert]);
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
@@ -82,37 +139,54 @@ export default function CivilizationView() {
     return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
   }, []);
 
-  const handleRockDragEnd = useCallback((rock: typeof DRAGGABLE_ROCKS[0], info: PanInfo) => {
+  const handleRockDragEnd = useCallback((rock: { id: string; color: string; size: number; label: string }, info: { point: { x: number; y: number } }) => {
     const center = getPlanetCenter();
     if (!center) return;
     const dist = Math.hypot(info.point.x - center.x, info.point.y - center.y);
     if (dist < 130) {
       setCapturedRocks(prev => new Set([...prev, rock.id]));
-      const moonSize = Math.max(5, rock.size * 0.45);
-      addMoon({ id: rock.id, color: rock.color, size: moonSize, orbitSpeed: 0.5 + Math.random() * 1.2 });
+      addMoon({ id: rock.id, color: rock.color, size: Math.max(5, rock.size * 0.45), orbitSpeed: 0.5 + Math.random() * 1.2 });
       addLog(`🌙 ${rock.label} captured — now orbiting ${planetName}!`);
     }
   }, [getPlanetCenter, addMoon, addLog, planetName]);
 
   const stars = useMemo(() =>
-    Array.from({ length: 200 }).map((_, i) => ({
+    Array.from({ length: 220 }).map((_, i) => ({
       id: i, x: Math.random() * 100, y: Math.random() * 100,
-      size: Math.random() * 2.2 + 0.5, opacity: Math.random() * 0.55 + 0.08,
+      size: Math.random() * 2.5 + 0.4, opacity: Math.random() * 0.5 + 0.06,
     })), []);
 
-  // Black hole — visible when zoom is low enough (within ~1400 px of center in container space)
-  const BH_X = 600; const BH_Y = 600;
-  const bhDistFromCenter = Math.hypot(BH_X - C, BH_Y - C);
-  const bhVisible = blackHoleAlert && zoom < 0.55;
+  const DRAGGABLE_ROCKS = useMemo(() => [
+    { id: 'dr1', dx: -310, dy: -260, size: 18, color: '#9ca3af', bg: 'radial-gradient(circle at 40% 30%, #9ca3af, #374151)', label: 'stray rock' },
+    { id: 'dr2', dx: 280, dy: -220, size: 14, color: '#a8a29e', bg: 'radial-gradient(circle at 40% 30%, #d6d3d1, #57534e)', label: 'meteorite' },
+    { id: 'dr3', dx: -280, dy: 265, size: 22, color: '#6b7280', bg: 'radial-gradient(circle at 35% 35%, #9ca3af, #374151)', label: 'debris' },
+    { id: 'dr4', dx: 290, dy: 280, size: 38, color: '#f97316', bg: 'radial-gradient(circle at 35% 30%, #fb923c, #9a3412)', label: 'proto-moon' },
+  ], []);
 
-  // Home star — at (C, C+1300), visible at zoom < 0.3
-  const starDistFromCenter = 1300;
-  const starVisible = (1 - zoom / 0.35) > 0.05;
-  const starOpacity = Math.min(1, Math.max(0, (0.32 - zoom) / 0.15));
+  const handlePlanetSignal = (obj: SolarObj) => {
+    if (!obj.signalTarget || signalSending) return;
+    setSignalSending(true);
+    setClickedPlanet(null);
+    const id = sendSignal(obj.signalTarget);
+    const delay = 4000 + Math.random() * 8000;
+    setTimeout(() => {
+      deliverSignalResponse(id);
+      setSignalSending(false);
+    }, delay);
+  };
 
-  const zoomHint = blackHoleAlert
-    ? '⚫ zoom out to see the black hole!'
-    : zoom < 0.5 ? 'solar system view'
+  // Alert info
+  const alertInfo = blackHoleAlert
+    ? { alert: blackHoleAlert, icon: '⚫', title: 'black hole incoming', subtitle: 'zoom out to see it · escape now', color: '#dc2626', btnLabel: '⚡ emergency boost!', onEscape: escapeBlackHole, bg: 'rgba(60,0,0,0.9)' }
+    : pandemicAlert
+    ? { alert: pandemicAlert, icon: '🦠', title: 'engineered pathogen outbreak', subtitle: '55 seconds to stop it or lose 65% population', color: '#f97316', btnLabel: '🔬 deploy cure', onEscape: escapePandemic, bg: 'rgba(40,15,0,0.9)' }
+    : nuclearAlert
+    ? { alert: nuclearAlert, icon: '☢️', title: 'nuclear missiles inbound', subtitle: 'impact in seconds · activate missile defense', color: '#fbbf24', btnLabel: '🛡️ intercept!', onEscape: escapeNuclear, bg: 'rgba(35,30,0,0.9)' }
+    : null;
+
+  const zoomHint = alertInfo
+    ? (blackHoleAlert ? '⚫ zoom out to see it!' : '')
+    : zoom < 0.45 ? 'solar system view · click planets to send signals'
     : zoom < 0.75 ? 'scroll to zoom out · drag rocks to create moons' : '';
 
   return (
@@ -125,190 +199,242 @@ export default function CivilizationView() {
         ))}
       </div>
 
-      {/* Black hole danger banner */}
+      {/* Countdown danger banner */}
       <AnimatePresence>
-        {blackHoleAlert && (
+        {alertInfo && (
           <motion.div
-            initial={{ y: -80, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: -80, opacity: 0 }}
+            initial={{ y: -80, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -80, opacity: 0 }}
             className="absolute top-0 left-0 right-0 z-50 flex items-center justify-between px-5 py-3"
             style={{
-              background: bhPulse
-                ? 'rgba(88,0,0,0.92)'
-                : 'rgba(60,0,0,0.88)',
-              border: '1px solid rgba(220,38,38,0.5)',
+              background: alertPulse
+                ? alertInfo.bg.replace('0.9', '1.0')
+                : alertInfo.bg,
+              border: `1px solid ${alertInfo.color}50`,
               backdropFilter: 'blur(12px)',
-              boxShadow: '0 0 40px rgba(220,38,38,0.3)',
-              transition: 'background 0.3s',
+              boxShadow: `0 0 40px ${alertInfo.color}30`,
+              transition: 'background 0.25s',
             }}
           >
             <div className="flex items-center gap-3">
-              <span className="text-2xl">⚫</span>
+              <span className="text-2xl">{alertInfo.icon}</span>
               <div>
-                <div className="text-red-300 font-bold text-sm tracking-wide">
-                  gravitational anomaly — black hole incoming
+                <div className="font-bold text-sm tracking-wide" style={{ color: alertInfo.color }}>
+                  {alertInfo.title}
                 </div>
-                <div className="text-red-400/60 text-xs">
-                  zoom out to see it · drag it away from your planet or hit emergency boost
+                <div className="text-xs" style={{ color: `${alertInfo.color}80` }}>
+                  {alertInfo.subtitle}
                 </div>
               </div>
             </div>
             <div className="flex items-center gap-4">
               <div className="text-center">
                 <div className="font-mono font-bold text-2xl"
-                  style={{ color: blackHoleAlert.timeLeft < 10 ? '#ef4444' : '#fca5a5' }}>
-                  {blackHoleAlert.timeLeft}s
+                  style={{ color: alertInfo.alert.timeLeft < 10 ? '#ef4444' : alertInfo.color }}>
+                  {alertInfo.alert.timeLeft}s
                 </div>
-                <div className="text-xs text-red-400/50">remaining</div>
+                <div className="text-xs" style={{ color: `${alertInfo.color}50` }}>remaining</div>
               </div>
               <button
-                onClick={escapeBlackHole}
+                onClick={alertInfo.onEscape}
                 className="px-4 py-2 rounded-full font-bold text-sm transition-all hover:scale-105"
                 style={{
-                  background: 'rgba(220,38,38,0.25)',
-                  border: '2px solid rgba(220,38,38,0.6)',
-                  color: '#fca5a5',
-                  boxShadow: '0 0 20px rgba(220,38,38,0.3)',
+                  background: `${alertInfo.color}20`,
+                  border: `2px solid ${alertInfo.color}60`,
+                  color: alertInfo.color,
+                  boxShadow: `0 0 20px ${alertInfo.color}30`,
                 }}
               >
-                ⚡ emergency boost!
+                {alertInfo.btnLabel}
               </button>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      <div className="flex-1 flex overflow-hidden z-10 relative" style={{ paddingTop: blackHoleAlert ? 64 : 0 }}>
+      <div className="flex-1 flex overflow-hidden z-10 relative" style={{ paddingTop: alertInfo ? 64 : 0 }}>
         <StatsPanel />
 
         {/* Planet viewport */}
         <div
-          ref={viewportRef}
           className="flex-1 relative overflow-hidden flex items-center justify-center"
           onWheel={handleWheel}
           style={{ cursor: 'crosshair' }}
+          onClick={() => setClickedPlanet(null)}
         >
           {/* Solar system container */}
           <div
             style={{
               position: 'absolute',
-              width: CONTAINER,
-              height: CONTAINER,
-              top: '50%',
-              left: '50%',
+              width: C * 2, height: C * 2,
+              top: '50%', left: '50%',
               transform: `translate(-50%, -50%) scale(${zoom})`,
               transformOrigin: 'center center',
               pointerEvents: 'none',
             }}
           >
-            {/* Background solar objects */}
-            {SOLAR_OBJS.map(obj => {
-              const distFromCenter = Math.hypot(obj.x - C, obj.y - C);
-              const rawOpacity = ((C / distFromCenter) * zoom - 0.6) * 2.5;
-              const opacity = Math.min(1, Math.max(0, 1 - rawOpacity));
-              if (opacity < 0.01) return null;
-              const isGiant = obj.type === 'largePlanet' || obj.type === 'sun';
-              return (
-                <div key={obj.id} style={{
-                  position: 'absolute',
-                  left: obj.x - obj.size, top: obj.y - obj.size,
-                  width: obj.size * 2, height: obj.size * 2,
-                  opacity, transition: 'opacity 0.4s',
-                }}>
-                  <div className="w-full h-full rounded-full" style={{
-                    background: obj.bg,
-                    boxShadow: isGiant
-                      ? `0 0 ${obj.size * 1.5}px ${obj.color}60, 0 0 ${obj.size * 3}px ${obj.color}20`
-                      : `0 0 ${obj.size * 0.8}px ${obj.color}50`,
-                  }} />
-                  <div style={{
-                    position: 'absolute', top: '110%', left: '50%', transform: 'translateX(-50%)',
-                    color: 'rgba(255,255,255,0.35)', fontSize: 12, whiteSpace: 'nowrap', fontFamily: 'monospace'
-                  }}>
-                    {obj.label}
-                  </div>
-                </div>
-              );
-            })}
-
-            {/* HOME STAR — below the planet, visible at low zoom */}
-            <div style={{
-              position: 'absolute',
-              left: C - 90, top: C + starDistFromCenter - 90,
-              width: 180, height: 180,
-              opacity: starOpacity,
-              transition: 'opacity 0.6s',
-              pointerEvents: 'none',
-            }}>
+            {/* HOME STAR at center — behind planet */}
+            <div style={{ position: 'absolute', left: C, top: C, transform: 'translate(-50%, -50%)', zIndex: 1 }}>
+              {/* Outer corona glow */}
               <div style={{
-                width: '100%', height: '100%', borderRadius: '50%',
-                background: 'radial-gradient(circle, #fff8e0 0%, #fef08a 30%, #fb923c 60%, #f97316 80%, transparent 100%)',
-                boxShadow: '0 0 80px rgba(251,191,36,0.9), 0 0 160px rgba(251,146,60,0.5), 0 0 280px rgba(251,146,60,0.2)',
+                position: 'absolute', borderRadius: '50%',
+                width: 700, height: 700, left: -350, top: -350,
+                background: 'radial-gradient(circle, rgba(251,191,36,0.12) 0%, rgba(251,146,60,0.05) 50%, transparent 70%)',
+                filter: 'blur(20px)',
+                pointerEvents: 'none',
               }} />
+              {/* Star body */}
+              <motion.div
+                animate={{ scale: [1, 1.025, 1] }}
+                transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
+                style={{
+                  width: 260, height: 260, marginLeft: -130, marginTop: -130,
+                  borderRadius: '50%',
+                  background: 'radial-gradient(circle, #fff9e0 0%, #fef08a 18%, #fb923c 48%, rgba(251,146,60,0.2) 80%, transparent 100%)',
+                  boxShadow: '0 0 80px rgba(251,191,36,0.9), 0 0 160px rgba(251,146,60,0.5), 0 0 320px rgba(251,146,60,0.2)',
+                  position: 'absolute',
+                }}
+              />
+              {/* Star name label */}
               <div style={{
-                position: 'absolute', top: '115%', left: '50%', transform: 'translateX(-50%)',
-                color: 'rgba(251,191,36,0.7)', fontSize: 13, whiteSpace: 'nowrap', fontFamily: 'monospace',
-                textShadow: '0 0 12px rgba(251,191,36,0.5)',
-                letterSpacing: '0.12em',
+                position: 'absolute', top: 155, left: '50%', transform: 'translateX(-50%)',
+                color: 'rgba(251,191,36,0.55)', fontSize: 12, whiteSpace: 'nowrap',
+                fontFamily: 'monospace', letterSpacing: '0.15em',
+                textShadow: '0 0 10px rgba(251,191,36,0.4)',
+                opacity: Math.max(0, (0.30 - zoom) / 0.12),
               }}>
                 ⭐ {starName}
               </div>
             </div>
 
-            {/* BLACK HOLE — appears when alert active */}
+            {/* Orbit rings */}
+            {SOLAR_OBJS.map(obj => {
+              const fadeIn = Math.min(1, Math.max(0, (680 / obj.orbitR / zoom - 0.7) * 2));
+              if (fadeIn < 0.01) return null;
+              return (
+                <div key={`ring-${obj.id}`} style={{
+                  position: 'absolute',
+                  left: C - obj.orbitR, top: C - obj.orbitR,
+                  width: obj.orbitR * 2, height: obj.orbitR * 2,
+                  borderRadius: '50%',
+                  border: `1px ${obj.type === 'gas' ? 'solid' : 'dashed'} rgba(255,255,255,${0.04 * fadeIn})`,
+                  pointerEvents: 'none',
+                  zIndex: 2,
+                }} />
+              );
+            })}
+
+            {/* Black hole (when alert active) */}
             {blackHoleAlert && (
               <motion.div
-                initial={{ opacity: 0, scale: 0.3 }}
-                animate={{ opacity: 1, scale: 1 }}
-                style={{
-                  position: 'absolute',
-                  left: BH_X - 80, top: BH_Y - 80,
-                  width: 160, height: 160,
-                }}
+                initial={{ opacity: 0, scale: 0.3 }} animate={{ opacity: 1, scale: 1 }}
+                style={{ position: 'absolute', left: 550, top: 550, zIndex: 3 }}
               >
-                {/* Outer accretion ring */}
+                {/* Accretion ring outer */}
                 <motion.div
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
+                  animate={{ rotate: 360 }} transition={{ duration: 2.5, repeat: Infinity, ease: 'linear' }}
                   style={{
-                    position: 'absolute', inset: -30,
+                    position: 'absolute', width: 220, height: 220, left: -110, top: -110,
                     borderRadius: '50%',
-                    border: '4px solid transparent',
-                    borderTopColor: 'rgba(251,146,60,0.6)',
-                    borderRightColor: 'rgba(251,191,36,0.4)',
-                    boxShadow: '0 0 30px rgba(251,146,60,0.4), inset 0 0 20px rgba(0,0,0,0.8)',
+                    border: '5px solid transparent', borderTopColor: 'rgba(251,146,60,0.65)', borderRightColor: 'rgba(251,191,36,0.45)',
+                    boxShadow: '0 0 40px rgba(251,146,60,0.4)',
                   }}
                 />
-                {/* Inner vortex */}
                 <motion.div
-                  animate={{ rotate: -360 }}
-                  transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
+                  animate={{ rotate: -360 }} transition={{ duration: 1.2, repeat: Infinity, ease: 'linear' }}
                   style={{
-                    position: 'absolute', inset: -5,
-                    borderRadius: '50%',
-                    border: '2px solid rgba(139,0,0,0.7)',
-                    boxShadow: '0 0 20px rgba(139,0,0,0.5)',
+                    position: 'absolute', width: 160, height: 160, left: -80, top: -80,
+                    borderRadius: '50%', border: '3px solid rgba(139,0,0,0.7)',
                   }}
                 />
-                {/* Event horizon */}
                 <div style={{
-                  position: 'absolute', inset: 10,
+                  width: 100, height: 100, marginLeft: -50, marginTop: -50,
                   borderRadius: '50%',
-                  background: 'radial-gradient(circle, #000 50%, rgba(30,0,0,0.8) 100%)',
-                  boxShadow: 'inset 0 0 30px rgba(0,0,0,1), 0 0 50px rgba(0,0,0,0.9)',
+                  background: 'radial-gradient(circle, #000 55%, rgba(20,0,0,0.9) 100%)',
+                  boxShadow: 'inset 0 0 30px rgba(0,0,0,1), 0 0 50px rgba(0,0,0,0.95)',
+                  position: 'absolute',
                 }} />
                 <div style={{
-                  position: 'absolute', top: '130%', left: '50%', transform: 'translateX(-50%)',
-                  color: 'rgba(220,38,38,0.7)', fontSize: 12, whiteSpace: 'nowrap', fontFamily: 'monospace',
-                  textShadow: '0 0 8px rgba(220,38,38,0.5)',
+                  position: 'absolute', top: 65, left: '50%', transform: 'translateX(-50%)',
+                  color: 'rgba(220,38,38,0.65)', fontSize: 11, whiteSpace: 'nowrap', fontFamily: 'monospace',
                 }}>
                   ⚫ singularity
                 </div>
               </motion.div>
             )}
 
-            {/* PLANET AT CENTER */}
+            {/* Orbiting solar system objects */}
+            {SOLAR_OBJS.map(obj => {
+              const fadeIn = Math.min(1, Math.max(0, (680 / obj.orbitR / zoom - 0.55) * 2.2));
+              if (fadeIn < 0.01) return null;
+              const startDeg = obj.startAngle * (180 / Math.PI);
+
+              return (
+                <React.Fragment key={obj.id}>
+                  {/* Rotating orbit wrapper — planet orbits with this */}
+                  <motion.div
+                    style={{ position: 'absolute', left: C, top: C, width: 0, height: 0, zIndex: 4 }}
+                    initial={{ rotate: startDeg }}
+                    animate={{ rotate: startDeg + 360 }}
+                    transition={{ duration: obj.orbitDur, repeat: Infinity, ease: 'linear' }}
+                  >
+                    {/* Counter-rotating inner — keeps planet upright */}
+                    <motion.div
+                      style={{ position: 'absolute', left: obj.orbitR, top: 0, transform: 'translate(-50%, -50%)' }}
+                      initial={{ rotate: -startDeg }}
+                      animate={{ rotate: -startDeg - 360 }}
+                      transition={{ duration: obj.orbitDur, repeat: Infinity, ease: 'linear' }}
+                    >
+                      {/* Planet sphere */}
+                      <div
+                        style={{
+                          width: obj.size * 2, height: obj.size * 2,
+                          borderRadius: '50%',
+                          background: obj.bg,
+                          opacity: fadeIn,
+                          boxShadow: obj.type === 'gas'
+                            ? `0 0 ${obj.size * 1.2}px ${obj.color}55, 0 0 ${obj.size * 2.5}px ${obj.color}20`
+                            : `0 0 ${obj.size * 0.9}px ${obj.color}60`,
+                          cursor: obj.signalTarget ? 'pointer' : 'default',
+                          pointerEvents: fadeIn > 0.3 ? 'auto' : 'none',
+                          position: 'relative',
+                          marginLeft: -obj.size, marginTop: -obj.size,
+                          transition: 'transform 0.2s',
+                          transform: hoveredPlanet === obj.id ? 'scale(1.12)' : 'scale(1)',
+                        }}
+                        onMouseEnter={() => obj.signalTarget && setHoveredPlanet(obj.id)}
+                        onMouseLeave={() => setHoveredPlanet(null)}
+                        onClick={e => { if (obj.signalTarget) { e.stopPropagation(); setClickedPlanet(obj); } }}
+                      />
+
+                      {/* Planet label + life % (visible when zoomed out enough) */}
+                      <div style={{
+                        position: 'absolute',
+                        top: obj.size + 8,
+                        left: '50%', transform: 'translateX(-50%)',
+                        textAlign: 'center',
+                        opacity: fadeIn * Math.min(1, (0.55 / zoom - 0.4) * 3),
+                        pointerEvents: 'none',
+                        whiteSpace: 'nowrap',
+                      }}>
+                        <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: 11, fontFamily: 'monospace' }}>
+                          {obj.label}
+                        </div>
+                        <div style={{ color: lifeColor(obj.lifeChance), fontSize: 10, fontFamily: 'monospace', marginTop: 2 }}>
+                          {lifeLabel(obj.lifeChance)}
+                        </div>
+                        {obj.signalTarget && (
+                          <div style={{ color: 'rgba(167,139,250,0.5)', fontSize: 9, marginTop: 1 }}>
+                            click to signal
+                          </div>
+                        )}
+                      </div>
+                    </motion.div>
+                  </motion.div>
+                </React.Fragment>
+              );
+            })}
+
+            {/* PLAYER PLANET at center — z-index above star */}
             <div style={{
               position: 'absolute', left: C, top: C,
               transform: 'translate(-50%, -50%)',
@@ -316,44 +442,35 @@ export default function CivilizationView() {
             }}>
               {/* Atmosphere glow */}
               <div className="absolute rounded-full pointer-events-none" style={{
-                inset: '-50%',
+                inset: '-60%',
                 background: 'radial-gradient(circle, rgba(6,182,212,0.09) 0%, transparent 70%)',
                 filter: 'blur(22px)',
               }} />
 
               {/* Moons orbiting */}
               {moons.map((moon, i) => {
-                const r = 115 + i * 38;
-                const dur = 6 / moon.orbitSpeed;
+                const r = 120 + i * 40;
                 return (
-                  <motion.div
-                    key={moon.id}
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: dur, repeat: Infinity, ease: 'linear' }}
-                    style={{ position: 'absolute', top: '50%', left: '50%', width: 0, height: 0, zIndex: 5 }}
-                  >
+                  <React.Fragment key={moon.id}>
                     <div style={{
-                      position: 'absolute',
-                      left: r - moon.size, top: -moon.size,
-                      width: moon.size * 2, height: moon.size * 2,
-                      borderRadius: '50%',
-                      background: `radial-gradient(circle at 35% 30%, ${moon.color}ff, ${moon.color}44)`,
-                      boxShadow: `0 0 ${moon.size * 1.5}px ${moon.color}60`,
+                      position: 'absolute', top: '50%', left: '50%',
+                      width: r * 2, height: r * 2, marginLeft: -r, marginTop: -r,
+                      borderRadius: '50%', border: '1px solid rgba(255,255,255,0.04)',
+                      pointerEvents: 'none',
                     }} />
-                  </motion.div>
-                );
-              })}
-
-              {/* Moon orbit rings */}
-              {moons.map((moon, i) => {
-                const r = 115 + i * 38;
-                return (
-                  <div key={`ring-${moon.id}`} style={{
-                    position: 'absolute', top: '50%', left: '50%',
-                    width: r * 2, height: r * 2, marginLeft: -r, marginTop: -r,
-                    borderRadius: '50%', border: '1px solid rgba(255,255,255,0.05)',
-                    pointerEvents: 'none',
-                  }} />
+                    <motion.div
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 6 / moon.orbitSpeed, repeat: Infinity, ease: 'linear' }}
+                      style={{ position: 'absolute', top: '50%', left: '50%', width: 0, height: 0, zIndex: 5 }}
+                    >
+                      <div style={{
+                        position: 'absolute', left: r - moon.size, top: -moon.size,
+                        width: moon.size * 2, height: moon.size * 2, borderRadius: '50%',
+                        background: `radial-gradient(circle at 35% 30%, ${moon.color}ff, ${moon.color}44)`,
+                        boxShadow: `0 0 ${moon.size * 1.5}px ${moon.color}60`,
+                      }} />
+                    </motion.div>
+                  </React.Fragment>
                 );
               })}
 
@@ -361,13 +478,11 @@ export default function CivilizationView() {
               <div
                 ref={planetBodyRef}
                 style={{
-                  position: 'relative', width: 220, height: 220,
+                  position: 'relative', width: 220, height: 220, borderRadius: '50%',
                   background: 'radial-gradient(circle at 35% 35%, #67e8f9, #0891b2, #065f80, #0a4050)',
-                  borderRadius: '50%',
                   boxShadow: '0 0 60px rgba(6,182,212,0.5), inset -20px -20px 40px rgba(0,0,0,0.6), inset 8px 8px 25px rgba(103,232,249,0.25)',
                 }}
               >
-                {/* Continents */}
                 <div className="absolute inset-0 rounded-full opacity-40" style={{
                   background: `
                     radial-gradient(ellipse 55% 35% at 40% 45%, rgba(34,197,94,0.85) 0%, transparent 60%),
@@ -375,10 +490,8 @@ export default function CivilizationView() {
                     radial-gradient(ellipse 25% 18% at 22% 68%, rgba(34,197,94,0.55) 0%, transparent 55%)
                   `
                 }} />
-                {/* Clouds */}
                 <motion.div
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 55, repeat: Infinity, ease: 'linear' }}
+                  animate={{ rotate: 360 }} transition={{ duration: 55, repeat: Infinity, ease: 'linear' }}
                   className="absolute inset-0 rounded-full opacity-25"
                   style={{
                     background: `
@@ -387,66 +500,94 @@ export default function CivilizationView() {
                     `
                   }}
                 />
-                {/* Rim atmosphere */}
                 <div className="absolute rounded-full pointer-events-none" style={{
-                  inset: -8,
-                  border: '2px solid rgba(6,182,212,0.18)',
+                  inset: -8, border: '2px solid rgba(6,182,212,0.18)',
                   boxShadow: '0 0 25px rgba(6,182,212,0.15) inset',
                 }} />
               </div>
 
               {/* Planet label */}
               <div style={{
-                position: 'absolute', top: '100%', marginTop: 16,
-                left: '50%', transform: 'translateX(-50%)',
+                position: 'absolute', top: '100%', marginTop: 16, left: '50%', transform: 'translateX(-50%)',
                 color: 'rgba(6,182,212,0.55)', fontSize: 14, letterSpacing: '0.2em',
-                whiteSpace: 'nowrap', fontFamily: 'monospace',
-                textShadow: '0 0 12px rgba(6,182,212,0.4)',
+                whiteSpace: 'nowrap', fontFamily: 'monospace', textShadow: '0 0 12px rgba(6,182,212,0.4)',
               }}>
                 {planetName}
               </div>
             </div>
           </div>
 
-          {/* DRAGGABLE ROCKS (viewport-space) */}
+          {/* DRAGGABLE ROCKS (viewport space) */}
           <div className="absolute inset-0 pointer-events-none z-20">
             {DRAGGABLE_ROCKS.filter(r => !capturedRocks.has(r.id)).map(rock => {
-              const visible = zoom < 0.85;
-              const scale = Math.min(1, (0.85 - zoom) / 0.2 + 0.1);
+              const visible = zoom < 0.88;
+              const scale = Math.min(1, (0.88 - zoom) / 0.22 + 0.1);
               return (
                 <motion.div
                   key={rock.id}
-                  drag
-                  dragSnapToOrigin
-                  dragMomentum={false}
+                  drag dragSnapToOrigin dragMomentum={false}
                   whileDrag={{ scale: 1.2, zIndex: 30, cursor: 'grabbing' }}
                   onDragEnd={(_, info) => handleRockDragEnd(rock, info)}
                   style={{
                     position: 'absolute',
-                    top: `calc(50% + ${rock.dy}px)`,
-                    left: `calc(50% + ${rock.dx}px)`,
+                    top: `calc(50% + ${rock.dy}px)`, left: `calc(50% + ${rock.dx}px)`,
                     width: rock.size * 2, height: rock.size * 2,
                     marginTop: -rock.size, marginLeft: -rock.size,
                     cursor: visible ? 'grab' : 'default',
                     pointerEvents: visible ? 'auto' : 'none',
                     opacity: visible ? scale : 0,
-                    transition: 'opacity 0.3s',
-                    zIndex: 20,
+                    transition: 'opacity 0.3s', zIndex: 20,
                   }}
                 >
                   <div className="w-full h-full rounded-full"
-                    style={{ background: rock.bg, boxShadow: `0 0 ${rock.size * 0.8}px ${rock.color}60` }}
-                  />
+                    style={{ background: rock.bg, boxShadow: `0 0 ${rock.size * 0.8}px ${rock.color}60` }} />
                   <div style={{
                     position: 'absolute', top: '115%', left: '50%', transform: 'translateX(-50%)',
-                    color: 'rgba(255,255,255,0.35)', fontSize: 10, whiteSpace: 'nowrap',
-                  }}>
-                    {rock.label}
-                  </div>
+                    color: 'rgba(255,255,255,0.3)', fontSize: 9, whiteSpace: 'nowrap',
+                  }}>{rock.label}</div>
                 </motion.div>
               );
             })}
           </div>
+
+          {/* Planet click popup — signal to planet */}
+          <AnimatePresence>
+            {clickedPlanet && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.85, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.85 }}
+                onClick={e => e.stopPropagation()}
+                style={{
+                  position: 'absolute', top: '50%', right: 60,
+                  transform: 'translateY(-50%)',
+                  zIndex: 40,
+                  background: 'rgba(10,11,30,0.97)',
+                  border: '1.5px solid rgba(124,58,237,0.5)',
+                  borderRadius: 16,
+                  padding: '18px 20px',
+                  boxShadow: '0 0 40px rgba(124,58,237,0.25)',
+                  minWidth: 200,
+                }}
+              >
+                <div className="text-white font-semibold text-sm mb-1">{clickedPlanet.label}</div>
+                <div className="text-xs mb-3" style={{ color: lifeColor(clickedPlanet.lifeChance) }}>
+                  {lifeLabel(clickedPlanet.lifeChance)}
+                </div>
+                <div className="text-xs text-white/40 mb-3">
+                  distance: {(clickedPlanet.orbitR / 100).toFixed(1)} AU
+                </div>
+                <button
+                  onClick={() => handlePlanetSignal(clickedPlanet)}
+                  disabled={signalSending}
+                  className="w-full py-2 rounded-lg text-xs font-medium transition-all hover:scale-[1.03] disabled:opacity-50"
+                  style={{ background: 'rgba(124,58,237,0.2)', border: '1px solid rgba(124,58,237,0.45)', color: '#c4b5fd' }}
+                >
+                  {signalSending ? '📡 transmitting...' : '📡 send signal'}
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Zoom controls */}
           <div className="absolute top-4 right-4 flex flex-col gap-1.5 z-30">
@@ -461,14 +602,13 @@ export default function CivilizationView() {
             </div>
           </div>
 
-          {/* Zoom hint */}
+          {/* Hint */}
           {zoomHint && (
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 text-xs px-3 py-1.5 rounded-full"
               style={{
                 color: blackHoleAlert ? 'rgba(252,165,165,0.8)' : 'rgba(255,255,255,0.35)',
                 background: blackHoleAlert ? 'rgba(60,0,0,0.5)' : 'rgba(0,0,0,0.3)',
                 border: `1px solid ${blackHoleAlert ? 'rgba(220,38,38,0.3)' : 'rgba(255,255,255,0.05)'}`,
-                animation: blackHoleAlert ? 'pulse 1s infinite' : 'none',
               }}>
               {zoomHint}
             </div>
@@ -509,6 +649,8 @@ export default function CivilizationView() {
         ))}
 
         <div className="w-px h-6 bg-white/10 mx-1" />
+
+        {/* Signal panel — prominently in bottom bar */}
         <SignalPanel />
       </div>
 

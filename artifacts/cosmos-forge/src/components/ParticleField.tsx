@@ -18,6 +18,7 @@ export default function ParticleField() {
 
   const [canStartCiv, setCanStartCiv] = useState(false);
   const [hoveredParticle, setHoveredParticle] = useState<{ x: number; y: number; name: string } | null>(null);
+  const [discovered, setDiscovered] = useState<Set<ParticleType>>(new Set(['H']));
 
   const particlesRef = useRef<Particle[]>([]);
   const discoveredRef = useRef<Set<ParticleType>>(new Set(['H']));
@@ -26,19 +27,18 @@ export default function ParticleField() {
   const orbitTimeRef = useRef(0);
   const planetPosRef = useRef({ x: 0, y: 0 });
   const canStartCivRef = useRef(false);
+  const starOpacityRef = useRef(0);
+  const planetOpacityRef = useRef(0);
+  const starFormedTimeRef = useRef(0);
 
-  // init particles
   useEffect(() => {
     const count = 200;
     const w = window.innerWidth;
     const h = window.innerHeight;
     particlesRef.current = Array.from({ length: count }, () => ({
-      x: Math.random() * w,
-      y: Math.random() * h,
-      vx: (Math.random() - 0.5) * 5,
-      vy: (Math.random() - 0.5) * 5,
-      type: 'H' as ParticleType,
-      radius: 2 + Math.random() * 2,
+      x: Math.random() * w, y: Math.random() * h,
+      vx: (Math.random() - 0.5) * 5, vy: (Math.random() - 0.5) * 5,
+      type: 'H' as ParticleType, radius: 2 + Math.random() * 2,
     }));
   }, []);
 
@@ -59,57 +59,43 @@ export default function ParticleField() {
     const checkDiscovered = (type: ParticleType) => {
       if (!discoveredRef.current.has(type)) {
         discoveredRef.current.add(type);
+        setDiscovered(new Set(discoveredRef.current));
       }
     };
 
-    const render = () => {
+    const render = (timestamp: number) => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       const isFormed = starFormedRef.current;
       const cx = canvas.width / 2;
       const cy = canvas.height / 2;
 
-      let ironCount = 0;
-      let plasmaCount = 0;
+      let ironCount = 0, plasmaCount = 0;
 
       particlesRef.current.forEach((p, idx) => {
         if (!isFormed) {
-          p.x += p.vx;
-          p.y += p.vy;
+          p.x += p.vx; p.y += p.vy;
           if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
           if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
 
-          // Bouncing collisions with nearby particles
+          // Elastic collisions
           for (let j = idx + 1; j < Math.min(idx + 8, particlesRef.current.length); j++) {
             const q = particlesRef.current[j];
-            const dx = q.x - p.x;
-            const dy = q.y - p.y;
+            const dx = q.x - p.x, dy = q.y - p.y;
             const dist = Math.hypot(dx, dy);
             const minD = p.radius + q.radius + 1;
             if (dist < minD && dist > 0) {
-              const nx = dx / dist;
-              const ny = dy / dist;
+              const nx = dx / dist, ny = dy / dist;
               const relV = (p.vx - q.vx) * nx + (p.vy - q.vy) * ny;
-              if (relV > 0) {
-                p.vx -= relV * nx;
-                p.vy -= relV * ny;
-                q.vx += relV * nx;
-                q.vy += relV * ny;
-              }
+              if (relV > 0) { p.vx -= relV * nx; p.vy -= relV * ny; q.vx += relV * nx; q.vy += relV * ny; }
             }
           }
-
           if (Math.random() < 0.012) {
             const ci = TYPES.indexOf(p.type);
-            if (ci < TYPES.length - 1) {
-              p.type = TYPES[ci + 1];
-              checkDiscovered(p.type);
-            }
+            if (ci < TYPES.length - 1) { p.type = TYPES[ci + 1]; checkDiscovered(p.type); }
           }
         } else {
-          // Orbit star
           if (p.orbitAngle === undefined) {
-            const dx = p.x - cx;
-            const dy = p.y - cy;
+            const dx = p.x - cx, dy = p.y - cy;
             p.orbitRadius = Math.max(55, Math.hypot(dx, dy));
             p.orbitAngle = Math.atan2(dy, dx);
           }
@@ -117,8 +103,7 @@ export default function ParticleField() {
           p.orbitAngle! += speed;
           p.x = cx + Math.cos(p.orbitAngle!) * p.orbitRadius!;
           p.y = cy + Math.sin(p.orbitAngle!) * p.orbitRadius!;
-
-          if (Math.random() < 0.002) {
+          if (Math.random() < 0.001) {
             const ci = TYPES.indexOf(p.type);
             if (ci < TYPES.length - 1) { p.type = TYPES[ci + 1]; checkDiscovered(p.type); }
           }
@@ -139,96 +124,96 @@ export default function ParticleField() {
 
       if (!isFormed && ironCount >= 5 && plasmaCount >= 5) {
         starFormedRef.current = true;
+        starFormedTimeRef.current = timestamp;
         setTimeout(() => {
           setCanStartCiv(true);
           canStartCivRef.current = true;
-          addLog('🌍 your planet is ready. click it to begin.');
-        }, 1800);
+        }, 3500);
       }
 
       if (isFormed) {
         orbitTimeRef.current += 0.008;
         const ot = orbitTimeRef.current;
+        const elapsed = (timestamp - starFormedTimeRef.current) / 1000;
 
-        // Star glow
+        // Slowly increase opacity
+        starOpacityRef.current = Math.min(1, elapsed / 2.5);
+        planetOpacityRef.current = Math.min(1, Math.max(0, (elapsed - 1.0) / 2.0));
+
+        const starAlpha = starOpacityRef.current;
+        const planetAlpha = planetOpacityRef.current;
+
+        // Star glow — emerges slowly
         const glowR = 44 + Math.sin(ot * 2) * 3;
         const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, glowR * 2.5);
-        gradient.addColorStop(0, 'rgba(251,191,36,0.9)');
-        gradient.addColorStop(0.4, 'rgba(251,146,60,0.5)');
+        gradient.addColorStop(0, `rgba(251,191,36,${0.9 * starAlpha})`);
+        gradient.addColorStop(0.4, `rgba(251,146,60,${0.5 * starAlpha})`);
         gradient.addColorStop(1, 'rgba(251,191,36,0)');
         ctx.beginPath();
         ctx.arc(cx, cy, glowR * 2.5, 0, Math.PI * 2);
         ctx.fillStyle = gradient;
         ctx.fill();
+
         ctx.beginPath();
         ctx.arc(cx, cy, glowR, 0, Math.PI * 2);
-        ctx.fillStyle = '#fef3c7';
-        ctx.shadowBlur = 60;
+        ctx.fillStyle = `rgba(254,243,199,${starAlpha})`;
+        ctx.shadowBlur = 60 * starAlpha;
         ctx.shadowColor = '#fb923c';
         ctx.fill();
         ctx.shadowBlur = 0;
 
-        // Orbit trail
-        const orbitR = 160;
-        ctx.beginPath();
-        ctx.arc(cx, cy, orbitR, 0, Math.PI * 2);
-        ctx.strokeStyle = canStartCivRef.current ? 'rgba(6,182,212,0.25)' : 'rgba(6,182,212,0.08)';
-        ctx.lineWidth = 1;
-        ctx.stroke();
-
-        // Planet
-        const px = cx + Math.cos(ot) * orbitR;
-        const py = cy + Math.sin(ot) * orbitR;
-        planetPosRef.current = { x: px, y: py };
-        const pGrad = ctx.createRadialGradient(px - 4, py - 4, 1, px, py, 20);
-        pGrad.addColorStop(0, '#a5f3fc');
-        pGrad.addColorStop(0.6, '#06b6d4');
-        pGrad.addColorStop(1, '#0e7490');
-        ctx.beginPath();
-        ctx.arc(px, py, 20, 0, Math.PI * 2);
-        ctx.fillStyle = pGrad;
-        if (canStartCivRef.current) {
-          ctx.shadowBlur = 45;
-          ctx.shadowColor = '#22d3ee';
-        } else {
-          ctx.shadowBlur = 22;
-          ctx.shadowColor = '#22d3ee';
-        }
-        ctx.fill();
-        ctx.shadowBlur = 0;
-
-        // Clickable indicator pulse
-        if (canStartCivRef.current) {
+        if (planetAlpha > 0) {
+          const orbitR = 160;
           ctx.beginPath();
-          ctx.arc(px, py, 26 + Math.sin(ot * 4) * 4, 0, Math.PI * 2);
-          ctx.strokeStyle = `rgba(34,211,238,${0.3 + Math.sin(ot * 4) * 0.15})`;
-          ctx.lineWidth = 1.5;
+          ctx.arc(cx, cy, orbitR, 0, Math.PI * 2);
+          ctx.strokeStyle = canStartCivRef.current ? `rgba(6,182,212,${0.25 * planetAlpha})` : `rgba(6,182,212,${0.08 * planetAlpha})`;
+          ctx.lineWidth = 1;
           ctx.stroke();
+
+          const px = cx + Math.cos(ot) * orbitR;
+          const py = cy + Math.sin(ot) * orbitR;
+          planetPosRef.current = { x: px, y: py };
+          const pGrad = ctx.createRadialGradient(px - 4, py - 4, 1, px, py, 20);
+          pGrad.addColorStop(0, '#a5f3fc');
+          pGrad.addColorStop(0.6, '#06b6d4');
+          pGrad.addColorStop(1, '#0e7490');
+          ctx.beginPath();
+          ctx.arc(px, py, 20, 0, Math.PI * 2);
+          ctx.fillStyle = pGrad;
+          ctx.globalAlpha = planetAlpha;
+          ctx.shadowBlur = canStartCivRef.current ? 45 : 22;
+          ctx.shadowColor = '#22d3ee';
+          ctx.fill();
+          ctx.shadowBlur = 0;
+          ctx.globalAlpha = 1;
+
+          if (canStartCivRef.current) {
+            ctx.beginPath();
+            ctx.arc(px, py, 26 + Math.sin(ot * 4) * 4, 0, Math.PI * 2);
+            ctx.strokeStyle = `rgba(34,211,238,${(0.3 + Math.sin(ot * 4) * 0.15) * planetAlpha})`;
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+          }
         }
       }
 
       frameRef.current = requestAnimationFrame(render);
     };
 
-    render();
+    frameRef.current = requestAnimationFrame(render);
     return () => {
       window.removeEventListener('resize', resize);
       cancelAnimationFrame(frameRef.current);
     };
-  }, [addLog]);
+  }, []);
 
   const handleMouseMove = (e: React.MouseEvent) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
-    const mx = e.clientX - rect.left;
-    const my = e.clientY - rect.top;
+    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
     const hovered = particlesRef.current.find(p => Math.hypot(p.x - mx, p.y - my) < p.radius + 6);
-    if (hovered) {
-      setHoveredParticle({ x: e.clientX, y: e.clientY, name: PARTICLE_CONFIG[hovered.type].name });
-    } else {
-      setHoveredParticle(null);
-    }
+    setHoveredParticle(hovered ? { x: e.clientX, y: e.clientY, name: PARTICLE_CONFIG[hovered.type].name } : null);
   };
 
   const handleCanvasClick = (e: React.MouseEvent) => {
@@ -236,30 +221,53 @@ export default function ParticleField() {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
-    const mx = e.clientX - rect.left;
-    const my = e.clientY - rect.top;
+    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
     const { x: px, y: py } = planetPosRef.current;
-    if (Math.hypot(mx - px, my - py) < 32) {
-      setPhase('civilization');
-    }
+    if (Math.hypot(mx - px, my - py) < 34) setPhase('civilization');
   };
 
   return (
-    <div className="w-full h-full relative overflow-hidden" ref={containerRef}
-      style={{ background: '#050714' }}>
+    <div className="w-full h-full relative overflow-hidden flex" ref={containerRef} style={{ background: '#050714' }}>
       <canvas
         ref={canvasRef}
         className="absolute inset-0"
-        style={{ cursor: canStartCiv ? 'pointer' : 'crosshair' }}
+        style={{ cursor: canStartCiv ? 'pointer' : 'crosshair', left: 0, right: '3rem' }}
         onMouseMove={handleMouseMove}
         onClick={handleCanvasClick}
       />
 
+      {/* Element discovery sidebar */}
+      <div className="absolute right-0 top-0 bottom-0 w-14 flex flex-col items-center gap-2 py-5 z-20"
+        style={{ background: 'rgba(5,7,20,0.85)', borderLeft: '1px solid rgba(255,255,255,0.04)', backdropFilter: 'blur(8px)' }}>
+        <div className="text-white/20 text-xs mb-2" style={{ fontSize: 8, letterSpacing: '0.1em', writingMode: 'vertical-rl', textOrientation: 'upright' }}>
+          ELEMENTS
+        </div>
+        {TYPES.map(type => {
+          const isDiscovered = discovered.has(type);
+          const config = PARTICLE_CONFIG[type];
+          return (
+            <div key={type} className="flex flex-col items-center gap-0.5" title={config.name}>
+              <div style={{
+                width: 9, height: 9, borderRadius: '50%',
+                background: isDiscovered ? config.color : 'rgba(255,255,255,0.08)',
+                boxShadow: isDiscovered ? `0 0 8px ${config.color}, 0 0 16px ${config.color}50` : 'none',
+                transition: 'all 0.8s ease',
+              }} />
+              <span style={{
+                fontSize: 8, fontFamily: 'monospace',
+                color: isDiscovered ? config.color : 'rgba(255,255,255,0.15)',
+                transition: 'color 0.8s ease',
+              }}>
+                {type}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
       {hoveredParticle && (
-        <div
-          className="fixed z-50 pointer-events-none bg-black/80 backdrop-blur border border-white/10 px-2 py-1 rounded text-xs text-white"
-          style={{ left: hoveredParticle.x + 12, top: hoveredParticle.y + 12 }}
-        >
+        <div className="fixed z-50 pointer-events-none bg-black/80 backdrop-blur border border-white/10 px-2 py-1 rounded text-xs text-white"
+          style={{ left: hoveredParticle.x + 12, top: hoveredParticle.y + 12 }}>
           {hoveredParticle.name}
         </div>
       )}

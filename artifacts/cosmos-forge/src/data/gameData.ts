@@ -211,10 +211,9 @@ export const RANDOM_EVENTS: GameEvent[] = [
     description: 'a 15km asteroid is on direct collision course. this could end everything.',
     type: 'extinction',
     choices: [
-      { label: '🚀 launch deflection array (very costly)', action: (s) => s.tech >= 60 ? { energy: Math.max(0, s.energy - 50), tech: Math.max(0, s.tech - 10) } : { population: 0, health: 0 } },
-      { label: '🛸 mass evacuation to kepler-452b', action: (s) => ({ population: Math.floor(s.population * 0.3), health: 40, food: 20, energy: 10 }) },
+      { label: '🚀 launch deflection array (very costly)', action: (s) => s.tech >= 60 ? { energy: Math.max(0, s.energy - 50), tech: Math.max(0, s.tech - 10) } : { population: 0, health: 0, deathReason: 'the deflection array wasn\'t ready. a 15km rock rewrote the surface in fire and silence.' } },
       { label: '🏔️ underground bunkers (saves few)', action: (s) => ({ population: Math.floor(s.population * 0.1), health: 30 }) },
-      { label: '💀 nothing. let it come.', action: (s) => ({ population: 0, health: 0 }) }
+      { label: '💀 nothing. let it come.', action: (s) => ({ population: 0, health: 0, deathReason: 'you watched the sky. it was beautiful, for a moment.' }) }
     ]
   },
   {
@@ -222,7 +221,6 @@ export const RANDOM_EVENTS: GameEvent[] = [
     description: 'ash blocks out the sun for decades. crops are failing.',
     type: 'negative',
     choices: [
-      { label: '✈️ evacuate to nova-7 colony', action: (s) => ({ food: Math.max(0, s.food - 30), population: Math.floor(s.population * 0.8) }) },
       { label: '🌿 adapt with greenhouse farms', action: (s) => ({ health: Math.max(0, s.health - 20), tech: s.tech + 5 }) },
       { label: '🏙️ move population underground', action: (s) => ({ energy: Math.max(0, s.energy - 30), health: Math.max(0, s.health - 10) }) }
     ]

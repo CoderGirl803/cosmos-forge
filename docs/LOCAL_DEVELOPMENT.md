@@ -69,6 +69,12 @@ pnpm run progress:push -- "short commit message"
 
 The helper runs `typecheck` and `build:app`, commits local changes, and pushes the current branch. It refuses to commit directly on `main` or `master`.
 
+Agents may use the automatic-message form at good checkpoints:
+
+```sh
+pnpm run progress:auto
+```
+
 ## Common Issues
 
 ### `Use pnpm instead`

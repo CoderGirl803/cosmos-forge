@@ -7,6 +7,7 @@
     "preinstall": "sh -c 'rm -f package-lock.json yarn.lock; case \"$npm_execpath:$npm_config_user_agent\" in *pnpm*) ;; *) echo \"Use pnpm instead\" >&2; exit 1 ;; esac'",
     "dev": "pnpm --filter @workspace/cosmos-forge run dev",
     "dev:api": "pnpm --filter @workspace/api-server run dev",
+    "progress:auto": "node scripts/good-progress.mjs",
     "progress:push": "node scripts/good-progress.mjs",
     "test": "pnpm -r --filter \"./artifacts/**\" --if-present run test",
     "build:app": "pnpm --filter @workspace/cosmos-forge run build",

@@ -150,6 +150,8 @@ export default function CivilizationView() {
   const playerOrbitR = 430 - Math.min(1, playMs / 600_000) * 140 - Math.min(1, orbitDecay) * 120;
   const galaxyOpacity = Math.min(1, Math.max(0, (0.18 - zoom) / 0.08));
   const stellarVisibility = Math.min(1, Math.max(0, (0.86 - zoom) / 0.28));
+  const closePlanetView = zoom > 0.86;
+  const systemOffsetX = closePlanetView ? -(playerOrbitR * zoom) : 0;
 
   const getPlanetCenter = useCallback(() => {
     if (!planetBodyRef.current) return null;
@@ -317,7 +319,7 @@ export default function CivilizationView() {
               position: 'absolute',
               width: C * 2, height: C * 2,
               top: '50%', left: '50%',
-              transform: `translate(-50%, -50%) scale(${zoom})`,
+              transform: `translate(calc(-50% + ${systemOffsetX}px), -50%) scale(${zoom})`,
               transformOrigin: 'center center',
               pointerEvents: 'none',
             }}
@@ -514,14 +516,14 @@ export default function CivilizationView() {
             <motion.div
               style={{ position: 'absolute', left: C, top: C, width: 0, height: 0, zIndex: 10 }}
               initial={{ rotate: -30 }}
-              animate={{ rotate: 330 }}
-              transition={{ duration: 96, repeat: Infinity, ease: 'linear' }}
+              animate={{ rotate: closePlanetView ? 0 : 330 }}
+              transition={closePlanetView ? { duration: 0.35 } : { duration: 96, repeat: Infinity, ease: 'linear' }}
             >
               <motion.div
                 style={{ position: 'absolute', left: playerOrbitR, top: 0, transform: 'translate(-50%, -50%)', pointerEvents: 'auto' }}
                 initial={{ rotate: 30 }}
-                animate={{ rotate: -330 }}
-                transition={{ duration: 96, repeat: Infinity, ease: 'linear' }}
+                animate={{ rotate: closePlanetView ? 0 : -330 }}
+                transition={closePlanetView ? { duration: 0.35 } : { duration: 96, repeat: Infinity, ease: 'linear' }}
               >
                 {/* Atmosphere glow */}
                 <div className="absolute rounded-full pointer-events-none" style={{

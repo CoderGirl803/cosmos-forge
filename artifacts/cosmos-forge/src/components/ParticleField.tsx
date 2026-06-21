@@ -16,17 +16,17 @@ export default function ParticleField() {
   const containerRef = useRef<HTMLDivElement>(null);
   const { addLog, setPhase } = useGameStore();
 
-  const [canStartCiv, setCanStartCiv] = useState(true);
+  const [canStartCiv, setCanStartCiv] = useState(false);
   const [hoveredParticle, setHoveredParticle] = useState<{ x: number; y: number; name: string } | null>(null);
   const [discovered, setDiscovered] = useState<Set<ParticleType>>(new Set(['H']));
 
   const particlesRef = useRef<Particle[]>([]);
   const discoveredRef = useRef<Set<ParticleType>>(new Set(['H']));
-  const starFormedRef = useRef(true);
+  const starFormedRef = useRef(false);
   const frameRef = useRef(0);
   const orbitTimeRef = useRef(0);
   const planetPosRef = useRef({ x: 0, y: 0 });
-  const canStartCivRef = useRef(true);
+  const canStartCivRef = useRef(false);
   const starOpacityRef = useRef(0);
   const planetOpacityRef = useRef(0);
   const starFormedTimeRef = useRef(0);
@@ -106,7 +106,7 @@ export default function ParticleField() {
         ctx.shadowBlur = 0;
       });
 
-      if (!isFormed && ironCount >= 5 && plasmaCount >= 5) {
+      if (!isFormed && plasmaCount >= 1) {
         starFormedRef.current = true;
         starFormedTimeRef.current = timestamp;
         setTimeout(() => {

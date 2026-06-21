@@ -7,7 +7,7 @@ import EventPopup from './EventPopup';
 import SignalPanel from './SignalPanel';
 import { Play, Pause, FastForward } from 'lucide-react';
 
-const MIN_ZOOM = 0.13;
+const MIN_ZOOM = 0.07;
 const MAX_ZOOM = 2.0;
 const C = 2000;
 
@@ -73,6 +73,14 @@ const SOLAR_OBJS: SolarObj[] = [
   },
 ];
 
+const GALAXIES = [
+  { id: 'andara veil', x: 18, y: 22, size: 120, rot: -18 },
+  { id: 'milk glass spiral', x: 72, y: 18, size: 160, rot: 24 },
+  { id: 'quiet chorus', x: 82, y: 72, size: 130, rot: -35 },
+  { id: 'sen cluster', x: 30, y: 78, size: 105, rot: 12 },
+  { id: 'dark forest lane', x: 52, y: 48, size: 190, rot: 40 },
+];
+
 function lifeColor(pct: number) {
   if (pct === 0) return 'rgba(100,116,139,0.6)';
   if (pct < 3) return 'rgba(251,191,36,0.75)';
@@ -90,6 +98,7 @@ function lifeLabel(pct: number) {
 export default function CivilizationView() {
   const {
     advanceTime, activeEvent, activeDisaster, planetName, starName,
+    starStatus, planetLevel, shieldLevel, greenhouse, orbitDecay,
     addLog, addMoon, moons,
     blackHoleAlert, escapeBlackHole, tickBlackHole,
     pandemicAlert, escapePandemic, tickPandemic,
@@ -102,15 +111,20 @@ export default function CivilizationView() {
   const [capturedRocks, setCapturedRocks] = useState<Set<string>>(new Set());
   const [alertPulse, setAlertPulse] = useState(false);
   const [hoveredPlanet, setHoveredPlanet] = useState<string | null>(null);
+  const [hoveredGalaxy, setHoveredGalaxy] = useState<string | null>(null);
   const [clickedPlanet, setClickedPlanet] = useState<SolarObj | null>(null);
   const [signalSending, setSignalSending] = useState(false);
+  const [playMs, setPlayMs] = useState(0);
 
   const planetBodyRef = useRef<HTMLDivElement>(null);
 
   // Auto-advance time
   useEffect(() => {
     if (!playing) return;
-    const iv = setInterval(() => advanceTime(10), 1200);
+    const iv = setInterval(() => {
+      advanceTime(10);
+      setPlayMs(ms => Math.min(600_000, ms + 1200));
+    }, 1200);
     return () => clearInterval(iv);
   }, [playing, advanceTime]);
 
@@ -132,6 +146,9 @@ export default function CivilizationView() {
     e.preventDefault();
     setZoom(z => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z - e.deltaY * 0.0012)));
   }, []);
+
+  const playerOrbitR = 430 - Math.min(1, playMs / 600_000) * 140 - Math.min(1, orbitDecay) * 120;
+  const galaxyOpacity = Math.min(1, Math.max(0, (0.18 - zoom) / 0.08));
 
   const getPlanetCenter = useCallback(() => {
     if (!planetBodyRef.current) return null;
@@ -177,11 +194,11 @@ export default function CivilizationView() {
 
   // Alert info
   const alertInfo = blackHoleAlert
-    ? { alert: blackHoleAlert, icon: '⚫', title: 'black hole incoming', subtitle: 'zoom out to see it · escape now', color: '#dc2626', btnLabel: '⚡ emergency boost!', onEscape: escapeBlackHole, bg: 'rgba(60,0,0,0.9)' }
+    ? { alert: blackHoleAlert, icon: '⚫', title: 'black hole incoming', subtitle: '5 seconds to escape the gravity well', color: '#dc2626', btnLabel: '⚡ emergency boost!', onEscape: escapeBlackHole, bg: 'rgba(60,0,0,0.9)' }
     : pandemicAlert
-    ? { alert: pandemicAlert, icon: '🦠', title: 'engineered pathogen outbreak', subtitle: '55 seconds to stop it or lose 65% population', color: '#f97316', btnLabel: '🔬 deploy cure', onEscape: escapePandemic, bg: 'rgba(40,15,0,0.9)' }
+    ? { alert: pandemicAlert, icon: '🦠', title: 'engineered pathogen outbreak', subtitle: '5 seconds to deploy a cure', color: '#f97316', btnLabel: '🔬 deploy cure', onEscape: escapePandemic, bg: 'rgba(40,15,0,0.9)' }
     : nuclearAlert
-    ? { alert: nuclearAlert, icon: '☢️', title: 'nuclear missiles inbound', subtitle: 'impact in seconds · activate missile defense', color: '#fbbf24', btnLabel: '🛡️ intercept!', onEscape: escapeNuclear, bg: 'rgba(35,30,0,0.9)' }
+    ? { alert: nuclearAlert, icon: '☢️', title: 'nuclear missiles inbound', subtitle: '5 seconds to intercept', color: '#fbbf24', btnLabel: '🛡️ intercept!', onEscape: escapeNuclear, bg: 'rgba(35,30,0,0.9)' }
     : null;
 
   const zoomHint = alertInfo
@@ -204,7 +221,10 @@ export default function CivilizationView() {
         {alertInfo && (
           <motion.div
             initial={{ y: -80, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -80, opacity: 0 }}
-            className="absolute top-0 left-0 right-0 z-50 flex items-center justify-between px-5 py-3"
+            className="absolute inset-0 z-50 flex items-center justify-center p-6 pointer-events-none"
+          >
+            <div
+              className="pointer-events-auto w-full max-w-xl rounded-2xl px-7 py-6 flex items-center justify-between gap-5"
             style={{
               background: alertPulse
                 ? alertInfo.bg.replace('0.9', '1.0')
@@ -213,22 +233,21 @@ export default function CivilizationView() {
               backdropFilter: 'blur(12px)',
               boxShadow: `0 0 40px ${alertInfo.color}30`,
               transition: 'background 0.25s',
-            }}
-          >
+            }}>
             <div className="flex items-center gap-3">
-              <span className="text-2xl">{alertInfo.icon}</span>
+              <span className="text-6xl">{alertInfo.icon}</span>
               <div>
-                <div className="font-bold text-sm tracking-wide" style={{ color: alertInfo.color }}>
+                <div className="font-bold text-2xl tracking-wide" style={{ color: alertInfo.color }}>
                   {alertInfo.title}
                 </div>
-                <div className="text-xs" style={{ color: `${alertInfo.color}80` }}>
+                <div className="text-sm mt-1" style={{ color: `${alertInfo.color}95` }}>
                   {alertInfo.subtitle}
                 </div>
               </div>
             </div>
             <div className="flex items-center gap-4">
               <div className="text-center">
-                <div className="font-mono font-bold text-2xl"
+                <div className="font-mono font-bold text-6xl"
                   style={{ color: alertInfo.alert.timeLeft < 10 ? '#ef4444' : alertInfo.color }}>
                   {alertInfo.alert.timeLeft}s
                 </div>
@@ -247,6 +266,7 @@ export default function CivilizationView() {
                 {alertInfo.btnLabel}
               </button>
             </div>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -261,6 +281,35 @@ export default function CivilizationView() {
           style={{ cursor: 'crosshair' }}
           onClick={() => setClickedPlanet(null)}
         >
+          {/* Galaxy layer when zoomed far out */}
+          <div className="absolute inset-0 z-[1] pointer-events-none" style={{ opacity: galaxyOpacity, transition: 'opacity 0.25s' }}>
+            {GALAXIES.map(g => (
+              <div
+                key={g.id}
+                className="absolute pointer-events-auto"
+                onMouseEnter={() => setHoveredGalaxy(g.id)}
+                onMouseLeave={() => setHoveredGalaxy(null)}
+                style={{
+                  left: `${g.x}%`, top: `${g.y}%`,
+                  width: g.size, height: Math.round(g.size * 0.42),
+                  transform: `translate(-50%, -50%) rotate(${g.rot}deg)`,
+                  borderRadius: '50%',
+                  background: 'radial-gradient(ellipse, rgba(226,232,240,0.45) 0%, rgba(148,163,184,0.16) 34%, rgba(30,41,59,0.02) 70%)',
+                  boxShadow: '0 0 35px rgba(148,163,184,0.18)',
+                }}
+              >
+                {hoveredGalaxy === g.id && (
+                  <div style={{
+                    position: 'absolute', left: '50%', top: '105%', transform: 'translateX(-50%)',
+                    color: 'rgba(226,232,240,0.8)', fontSize: 11, whiteSpace: 'nowrap',
+                    background: 'rgba(2,6,23,0.65)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '4px 8px',
+                  }}>
+                    {g.id}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
           {/* Solar system container */}
           <div
             style={{
@@ -278,19 +327,31 @@ export default function CivilizationView() {
               <div style={{
                 position: 'absolute', borderRadius: '50%',
                 width: 700, height: 700, left: -350, top: -350,
-                background: 'radial-gradient(circle, rgba(251,191,36,0.12) 0%, rgba(251,146,60,0.05) 50%, transparent 70%)',
+                background: starStatus === 'blackhole'
+                  ? 'radial-gradient(circle, rgba(0,0,0,0.95) 0%, rgba(148,163,184,0.08) 42%, transparent 70%)'
+                  : starStatus === 'supernova'
+                  ? 'radial-gradient(circle, rgba(255,255,255,0.35) 0%, rgba(248,113,113,0.16) 45%, transparent 72%)'
+                  : 'radial-gradient(circle, rgba(251,191,36,0.10) 0%, rgba(251,146,60,0.04) 50%, transparent 70%)',
                 filter: 'blur(20px)',
                 pointerEvents: 'none',
               }} />
               {/* Star body */}
               <motion.div
-                animate={{ scale: [1, 1.025, 1] }}
-                transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
+                animate={{ scale: starStatus === 'flare' ? [1, 1.12, 1] : [1, 1.025, 1] }}
+                transition={{ duration: starStatus === 'flare' ? 1.4 : 5, repeat: Infinity, ease: 'easeInOut' }}
                 style={{
                   width: 260, height: 260, marginLeft: -130, marginTop: -130,
                   borderRadius: '50%',
-                  background: 'radial-gradient(circle, #fff9e0 0%, #fef08a 18%, #fb923c 48%, rgba(251,146,60,0.2) 80%, transparent 100%)',
-                  boxShadow: '0 0 80px rgba(251,191,36,0.9), 0 0 160px rgba(251,146,60,0.5), 0 0 320px rgba(251,146,60,0.2)',
+                  background: starStatus === 'blackhole'
+                    ? 'radial-gradient(circle, #000 0%, #000 48%, rgba(15,23,42,0.95) 62%, rgba(248,113,113,0.28) 70%, transparent 100%)'
+                    : starStatus === 'supernova'
+                    ? 'radial-gradient(circle, #fff 0%, #fde68a 22%, #f87171 54%, rgba(239,68,68,0.25) 82%, transparent 100%)'
+                    : 'radial-gradient(circle, #fff9e0 0%, #fef08a 18%, #fb923c 48%, rgba(251,146,60,0.2) 80%, transparent 100%)',
+                  boxShadow: starStatus === 'blackhole'
+                    ? '0 0 80px rgba(0,0,0,1), 0 0 170px rgba(248,113,113,0.22)'
+                    : starStatus === 'supernova'
+                    ? '0 0 120px rgba(255,255,255,0.85), 0 0 260px rgba(248,113,113,0.5), 0 0 420px rgba(239,68,68,0.25)'
+                    : '0 0 60px rgba(251,191,36,0.62), 0 0 130px rgba(251,146,60,0.34), 0 0 260px rgba(251,146,60,0.12)',
                   position: 'absolute',
                 }}
               />
@@ -307,6 +368,15 @@ export default function CivilizationView() {
             </div>
 
             {/* Orbit rings */}
+            <div style={{
+              position: 'absolute',
+              left: C - playerOrbitR, top: C - playerOrbitR,
+              width: playerOrbitR * 2, height: playerOrbitR * 2,
+              borderRadius: '50%',
+              border: '1px solid rgba(103,232,249,0.12)',
+              pointerEvents: 'none',
+              zIndex: 2,
+            }} />
             {SOLAR_OBJS.map(obj => {
               const fadeIn = Math.min(1, Math.max(0, (680 / obj.orbitR / zoom - 0.7) * 2));
               if (fadeIn < 0.01) return null;
@@ -434,87 +504,115 @@ export default function CivilizationView() {
               );
             })}
 
-            {/* PLAYER PLANET at center — z-index above star */}
-            <div style={{
-              position: 'absolute', left: C, top: C,
-              transform: 'translate(-50%, -50%)',
-              pointerEvents: 'auto', zIndex: 10,
-            }}>
-              {/* Atmosphere glow */}
-              <div className="absolute rounded-full pointer-events-none" style={{
-                inset: '-60%',
-                background: 'radial-gradient(circle, rgba(6,182,212,0.09) 0%, transparent 70%)',
-                filter: 'blur(22px)',
-              }} />
+            {/* PLAYER PLANET — orbits the home star */}
+            <motion.div
+              style={{ position: 'absolute', left: C, top: C, width: 0, height: 0, zIndex: 10 }}
+              initial={{ rotate: -30 }}
+              animate={{ rotate: 330 }}
+              transition={{ duration: 96, repeat: Infinity, ease: 'linear' }}
+            >
+              <motion.div
+                style={{ position: 'absolute', left: playerOrbitR, top: 0, transform: 'translate(-50%, -50%)', pointerEvents: 'auto' }}
+                initial={{ rotate: 30 }}
+                animate={{ rotate: -330 }}
+                transition={{ duration: 96, repeat: Infinity, ease: 'linear' }}
+              >
+                {/* Atmosphere glow */}
+                <div className="absolute rounded-full pointer-events-none" style={{
+                  inset: '-60%',
+                  background: 'radial-gradient(circle, rgba(148,163,184,0.10) 0%, transparent 70%)',
+                  filter: 'blur(22px)',
+                }} />
 
-              {/* Moons orbiting */}
-              {moons.map((moon, i) => {
-                const r = 120 + i * 40;
-                return (
-                  <React.Fragment key={moon.id}>
-                    <div style={{
-                      position: 'absolute', top: '50%', left: '50%',
-                      width: r * 2, height: r * 2, marginLeft: -r, marginTop: -r,
-                      borderRadius: '50%', border: '1px solid rgba(255,255,255,0.04)',
-                      pointerEvents: 'none',
+                {/* Moons orbiting */}
+                {moons.map((moon, i) => {
+                  const r = 120 + i * 40;
+                  return (
+                    <React.Fragment key={moon.id}>
+                      <div style={{
+                        position: 'absolute', top: '50%', left: '50%',
+                        width: r * 2, height: r * 2, marginLeft: -r, marginTop: -r,
+                        borderRadius: '50%', border: '1px solid rgba(255,255,255,0.04)',
+                        pointerEvents: 'none',
+                      }} />
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 6 / moon.orbitSpeed, repeat: Infinity, ease: 'linear' }}
+                        style={{ position: 'absolute', top: '50%', left: '50%', width: 0, height: 0, zIndex: 5 }}
+                      >
+                        <div style={{
+                          position: 'absolute', left: r - moon.size, top: -moon.size,
+                          width: moon.size * 2, height: moon.size * 2, borderRadius: '50%',
+                          background: `radial-gradient(circle at 35% 30%, ${moon.color}ff, ${moon.color}44)`,
+                          boxShadow: `0 0 ${moon.size * 1.5}px ${moon.color}60`,
+                        }} />
+                      </motion.div>
+                    </React.Fragment>
+                  );
+                })}
+
+                {/* Planet body */}
+                <div
+                  ref={planetBodyRef}
+                  style={{
+                    position: 'relative', width: 220, height: 220, borderRadius: '50%',
+                    background: 'radial-gradient(circle at 35% 35%, #9ccbd5, #287080, #123843, #0f242b)',
+                    boxShadow: '0 0 34px rgba(148,163,184,0.32), inset -22px -22px 42px rgba(0,0,0,0.66), inset 8px 8px 25px rgba(226,232,240,0.16)',
+                  }}
+                >
+                  <div className="absolute inset-0 rounded-full opacity-40" style={{
+                    background: `
+                      radial-gradient(ellipse 55% 35% at 40% 45%, rgba(74,122,83,0.85) 0%, transparent 60%),
+                      radial-gradient(ellipse 30% 20% at 72% 30%, rgba(74,122,83,0.65) 0%, transparent 50%),
+                      radial-gradient(ellipse 25% 18% at 22% 68%, rgba(74,122,83,0.55) 0%, transparent 55%)
+                    `
+                  }} />
+                  <motion.div
+                    animate={{ rotate: 360 }} transition={{ duration: 55, repeat: Infinity, ease: 'linear' }}
+                    className="absolute inset-0 rounded-full"
+                    style={{
+                      opacity: 0.16 + greenhouse / 250,
+                      background: `
+                        radial-gradient(ellipse 60% 22% at 50% 28%, rgba(226,232,240,0.9), transparent 60%),
+                        radial-gradient(ellipse 40% 18% at 68% 62%, rgba(190,190,180,0.75), transparent 55%),
+                        radial-gradient(ellipse 70% 24% at 45% 72%, rgba(130,130,120,${greenhouse / 150}), transparent 60%)
+                      `
+                    }}
+                  />
+                  {greenhouse > 10 && (
+                    <div className="absolute inset-0 rounded-full pointer-events-none" style={{
+                      background: `rgba(120,113,108,${Math.min(0.34, greenhouse / 260)})`,
+                      boxShadow: `0 0 ${20 + greenhouse}px rgba(120,113,108,0.18)`,
                     }} />
+                  )}
+                  {shieldLevel > 0 && (
                     <motion.div
                       animate={{ rotate: 360 }}
-                      transition={{ duration: 6 / moon.orbitSpeed, repeat: Infinity, ease: 'linear' }}
-                      style={{ position: 'absolute', top: '50%', left: '50%', width: 0, height: 0, zIndex: 5 }}
-                    >
-                      <div style={{
-                        position: 'absolute', left: r - moon.size, top: -moon.size,
-                        width: moon.size * 2, height: moon.size * 2, borderRadius: '50%',
-                        background: `radial-gradient(circle at 35% 30%, ${moon.color}ff, ${moon.color}44)`,
-                        boxShadow: `0 0 ${moon.size * 1.5}px ${moon.color}60`,
-                      }} />
-                    </motion.div>
-                  </React.Fragment>
-                );
-              })}
+                      transition={{ duration: 18, repeat: Infinity, ease: 'linear' }}
+                      className="absolute rounded-full pointer-events-none"
+                      style={{
+                        inset: -12 - shieldLevel * 7,
+                        border: `${1 + shieldLevel}px solid rgba(147,197,253,${0.18 + shieldLevel * 0.08})`,
+                        boxShadow: `0 0 ${18 + shieldLevel * 12}px rgba(147,197,253,0.22)`,
+                      }}
+                    />
+                  )}
+                  <div className="absolute rounded-full pointer-events-none" style={{
+                    inset: -8, border: '2px solid rgba(148,163,184,0.16)',
+                    boxShadow: '0 0 20px rgba(148,163,184,0.12) inset',
+                  }} />
+                </div>
 
-              {/* Planet body */}
-              <div
-                ref={planetBodyRef}
-                style={{
-                  position: 'relative', width: 220, height: 220, borderRadius: '50%',
-                  background: 'radial-gradient(circle at 35% 35%, #67e8f9, #0891b2, #065f80, #0a4050)',
-                  boxShadow: '0 0 60px rgba(6,182,212,0.5), inset -20px -20px 40px rgba(0,0,0,0.6), inset 8px 8px 25px rgba(103,232,249,0.25)',
-                }}
-              >
-                <div className="absolute inset-0 rounded-full opacity-40" style={{
-                  background: `
-                    radial-gradient(ellipse 55% 35% at 40% 45%, rgba(34,197,94,0.85) 0%, transparent 60%),
-                    radial-gradient(ellipse 30% 20% at 72% 30%, rgba(34,197,94,0.65) 0%, transparent 50%),
-                    radial-gradient(ellipse 25% 18% at 22% 68%, rgba(34,197,94,0.55) 0%, transparent 55%)
-                  `
-                }} />
-                <motion.div
-                  animate={{ rotate: 360 }} transition={{ duration: 55, repeat: Infinity, ease: 'linear' }}
-                  className="absolute inset-0 rounded-full opacity-25"
-                  style={{
-                    background: `
-                      radial-gradient(ellipse 60% 22% at 50% 28%, rgba(255,255,255,0.95), transparent 60%),
-                      radial-gradient(ellipse 40% 18% at 68% 62%, rgba(255,255,255,0.8), transparent 55%)
-                    `
-                  }}
-                />
-                <div className="absolute rounded-full pointer-events-none" style={{
-                  inset: -8, border: '2px solid rgba(6,182,212,0.18)',
-                  boxShadow: '0 0 25px rgba(6,182,212,0.15) inset',
-                }} />
-              </div>
-
-              {/* Planet label */}
-              <div style={{
-                position: 'absolute', top: '100%', marginTop: 16, left: '50%', transform: 'translateX(-50%)',
-                color: 'rgba(6,182,212,0.55)', fontSize: 14, letterSpacing: '0.2em',
-                whiteSpace: 'nowrap', fontFamily: 'monospace', textShadow: '0 0 12px rgba(6,182,212,0.4)',
-              }}>
-                {planetName}
-              </div>
-            </div>
+                {/* Planet label */}
+                <div style={{
+                  position: 'absolute', top: '100%', marginTop: 16, left: '50%', transform: 'translateX(-50%)',
+                  color: 'rgba(203,213,225,0.62)', fontSize: 14, letterSpacing: '0.2em',
+                  whiteSpace: 'nowrap', fontFamily: 'monospace', textShadow: '0 0 10px rgba(148,163,184,0.35)',
+                }}>
+                  {planetName}
+                </div>
+              </motion.div>
+            </motion.div>
           </div>
 
           {/* DRAGGABLE ROCKS (viewport space) */}

@@ -100,6 +100,10 @@
     /* hide scrollbars on body, its a full screen app */
   }
 
+  body, button, input {
+    cursor: inherit;
+  }
+
   /* Custom Scrollbar for sidebars */
   ::-webkit-scrollbar {
     width: 6px;
@@ -115,6 +119,11 @@
   ::-webkit-scrollbar-thumb:hover {
     background: hsl(var(--muted-foreground));
   }
+}
+
+.star-cursor,
+.star-cursor * {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cpath fill='%23f8fafc' stroke='%230f172a' stroke-width='1.4' d='M14 1.8l3.3 8.4 8.9 3.3-8.9 3.3-3.3 8.4-3.3-8.4-8.9-3.3 8.9-3.3z'/%3E%3C/svg%3E") 14 14, auto;
 }
 
 .glass-panel {

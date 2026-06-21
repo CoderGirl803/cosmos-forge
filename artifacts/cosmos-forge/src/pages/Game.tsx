@@ -11,7 +11,14 @@ export default function Game() {
   const { phase, resetGame, deathReason } = useGameStore();
 
   return (
-    <div className="fixed inset-0 bg-background text-foreground overflow-hidden">
+    <div className="fixed inset-0 bg-background text-foreground overflow-hidden star-cursor">
+      {phase !== 'bigbang' && phase !== 'lose' && (
+        <div className="fixed top-3 right-3 z-[80] flex items-center gap-2 rounded-full px-2.5 py-1.5"
+          style={{ background: 'rgba(5,7,20,0.62)', border: '1px solid rgba(255,255,255,0.08)', backdropFilter: 'blur(10px)' }}>
+          <img src="/sen-icon.svg" alt="sen" width={28} height={28} style={{ imageRendering: 'pixelated' }} />
+          <span className="text-xs text-white/60">hi, i'm sen</span>
+        </div>
+      )}
       <AnimatePresence mode="wait">
         {phase === 'intro' && (
           <motion.div key="intro" className="absolute inset-0"

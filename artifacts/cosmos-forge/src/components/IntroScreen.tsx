@@ -42,7 +42,7 @@ export default function IntroScreen() {
       style={{ userSelect: 'none' }}
     >
       {/* Stars */}
-      <div className="absolute inset-0 pointer-events-none">
+      <div className="absolute inset-0 pointer-events-none" style={{ opacity: merged ? 0 : 1, transition: 'opacity 0.2s' }}>
         {stars.map(s => (
           <div
             key={s.id}
@@ -58,7 +58,7 @@ export default function IntroScreen() {
       </div>
 
       {/* Title block — fixed center */}
-      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none" style={{ paddingBottom: '30vh' }}>
+      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none" style={{ paddingBottom: '30vh', opacity: merged ? 0 : 1, transition: 'opacity 0.15s' }}>
         <motion.h1
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
@@ -99,6 +99,7 @@ export default function IntroScreen() {
         animate={{ opacity: 1 }}
         transition={{ delay: 4, duration: 1.5 }}
         className="absolute inset-0 pointer-events-none"
+        style={{ opacity: merged ? 0 : 1, transition: 'opacity 0.15s' }}
       >
         {/* Orb 1 — left */}
         <motion.div

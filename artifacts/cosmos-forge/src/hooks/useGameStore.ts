@@ -21,6 +21,11 @@ interface GameState {
   era: Era;
   planetName: string;
   starName: string;
+  starStatus: 'stable' | 'flare' | 'supernova' | 'blackhole';
+  planetLevel: number;
+  shieldLevel: number;
+  greenhouse: number;
+  orbitDecay: number;
   suggestions: typeof SUGGESTIONS;
   activeEvent: GameEvent | null;
   activeDisaster: DisasterInfo | null;
@@ -66,6 +71,11 @@ const mkInitial = () => ({
   era: 'primordial' as Era,
   planetName: 'terra-9',
   starName: 'sol-prime',
+  starStatus: 'stable' as const,
+  planetLevel: 1,
+  shieldLevel: 0,
+  greenhouse: 0,
+  orbitDecay: 0,
   suggestions: SUGGESTIONS.map(s => ({ ...s })),
   activeEvent: null as GameEvent | null,
   activeDisaster: null as DisasterInfo | null,
@@ -121,7 +131,10 @@ export const useGameStore = create<GameState>((set, get) => ({
     if (state.phase !== 'civilization') return state;
 
     const newYear = state.year + years;
-    const updates: Partial<GameState> & { deathReason?: string } = { year: newYear };
+    const updates: Partial<GameState> & { deathReason?: string } = {
+      year: newYear,
+      orbitDecay: Math.min(1, state.orbitDecay + years / 6_000_000_000),
+    };
 
     // Unlock suggestions
     const nextLocked = state.suggestions.find(s => !s.unlocked && newYear >= s.unlockYear);
@@ -156,13 +169,22 @@ export const useGameStore = create<GameState>((set, get) => ({
       if (evt) updates.activeEvent = evt;
     }
 
+    // Rare stellar crisis
+    const starChance = state.era === 'cosmic' ? 0.08 : state.era === 'digital' ? 0.035 : 0.012;
+    if (state.population > 0 && state.year >= 2_000_000_000 && state.starStatus === 'stable' && !state.activeEvent && !(updates.activeEvent) && Math.random() < starChance) {
+      const evt = RANDOM_EVENTS.find(e => e.id === 'stellar_instability');
+      if (evt) updates.activeEvent = evt;
+      updates.starStatus = 'flare';
+    }
+
     // Random events
-    const hasHumans = (updates.population ?? state.population) >= 200_000_000;
+    const hasHumans = (updates.population ?? state.population) >= 200_000_000 && state.era !== 'primordial';
     const eventChance = years >= 1_000_000_000 ? 0.45 : years >= 1_000_000 ? 0.35 : 0.25;
     if (Math.random() < eventChance && !state.activeEvent && !(updates.activeEvent) && state.population > 0) {
       const pool = RANDOM_EVENTS.filter(e => {
         if (e.id === 'tech_singularity') return false;
         if (e.type === 'paradox' && !hasHumans) return false;
+        if (['ai_war', 'tech_singularity', 'nuclear_war', 'nuclear_war_2', 'nuclear_winter_2', 'gray_goo', 'dimension_leak'].includes(e.id) && !hasHumans) return false;
         if (e.type === 'extinction' && state.year < 2_000_000_000) return false;
         if (e.id === 'nuclear_war' && state.era === 'primordial') return false;
         if (e.id === 'nuclear_war_2' && state.era === 'primordial') return false;
@@ -176,30 +198,31 @@ export const useGameStore = create<GameState>((set, get) => ({
     if (Math.random() < disasterChance && !state.activeDisaster && !(updates.activeEvent) && state.population > 0) {
       const d = DISASTERS[Math.floor(Math.random() * DISASTERS.length)];
       updates.activeDisaster = d;
-      const kill = d.deathPercent / 100;
+      const shieldReduction = Math.min(0.8, state.shieldLevel * 0.22);
+      const kill = Math.max(0, d.deathPercent / 100 - shieldReduction);
       updates.population = Math.floor((updates.population ?? state.population) * (1 - kill));
-      updates.energy = Math.max(0, state.energy - d.energyLoss);
-      updates.health = Math.max(0, state.health - d.healthLoss);
+      updates.energy = Math.max(0, state.energy - Math.max(0, d.energyLoss - state.shieldLevel * 4));
+      updates.health = Math.max(0, state.health - Math.max(0, d.healthLoss - state.shieldLevel * 3) - Math.floor(state.greenhouse / 8));
     }
 
     // Black hole trigger
     const bhChance = years >= 1_000_000_000 ? 0.05 : 0.02;
     if (!state.blackHoleAlert && !state.pandemicAlert && !state.nuclearAlert && state.tech >= 35 && state.year >= 4_000_000_000 && Math.random() < bhChance) {
-      updates.blackHoleAlert = { timeLeft: 40 };
+      updates.blackHoleAlert = { timeLeft: 5 };
       updates.logs = [{ id: Math.random().toString(36), time: `yr ${fmtYear(newYear)}`, text: '⚫ CRITICAL: black hole gravitational pull detected!' }, ...state.logs].slice(0, 80);
     }
 
     // Pandemic alert
     const pandChance = years >= 1_000_000_000 ? 0.07 : 0.03;
     if (!state.pandemicAlert && !state.blackHoleAlert && !state.nuclearAlert && hasHumans && !updates.blackHoleAlert && Math.random() < pandChance) {
-      updates.pandemicAlert = { timeLeft: 55 };
+      updates.pandemicAlert = { timeLeft: 5 };
       updates.logs = [{ id: Math.random().toString(36), time: `yr ${fmtYear(newYear)}`, text: '🦠 OUTBREAK: engineered pathogen spreading rapidly!' }, ...state.logs].slice(0, 80);
     }
 
     // Nuclear launch alert
     const nukeChance = years >= 1_000_000_000 ? 0.04 : 0.02;
     if (!state.nuclearAlert && !state.blackHoleAlert && !state.pandemicAlert && !updates.pandemicAlert && (state.era === 'industrial' || state.era === 'digital' || state.era === 'cosmic') && Math.random() < nukeChance) {
-      updates.nuclearAlert = { timeLeft: 28 };
+      updates.nuclearAlert = { timeLeft: 5 };
       updates.logs = [{ id: Math.random().toString(36), time: `yr ${fmtYear(newYear)}`, text: '☢️ LAUNCH DETECTED: nuclear warheads inbound!' }, ...state.logs].slice(0, 80);
     }
 

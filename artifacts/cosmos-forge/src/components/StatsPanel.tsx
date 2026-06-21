@@ -4,6 +4,7 @@ import { useGameStore } from '../hooks/useGameStore';
 export default function StatsPanel() {
   const {
     population, food, energy, tech, health, year, era,
+    planetLevel, shieldLevel, greenhouse, starStatus,
     planetName, setPlanetName, starName, setStarName,
   } = useGameStore();
 
@@ -11,7 +12,6 @@ export default function StatsPanel() {
   const [editingStar, setEditingStar] = useState(false);
   const [planetInput, setPlanetInput] = useState('');
   const [starInput, setStarInput] = useState('');
-  const [senHovered, setSenHovered] = useState(false);
 
   const startEditPlanet = () => { setPlanetInput(planetName); setEditingPlanet(true); };
   const finishEditPlanet = () => { const t = planetInput.trim(); if (t) setPlanetName(t.toLowerCase()); setEditingPlanet(false); };
@@ -101,13 +101,18 @@ export default function StatsPanel() {
         </div>
 
         {/* Era badge */}
-        <div className="self-start px-3 py-1 rounded-full text-xs font-semibold" style={{
-          background: `${eraColors[era]}20`,
-          border: `1px solid ${eraColors[era]}50`,
-          color: eraColors[era],
-          boxShadow: `0 0 10px ${eraColors[era]}30`
-        }}>
-          era: {era}
+        <div className="flex flex-wrap gap-2">
+          <div className="self-start px-3 py-1 rounded-full text-xs font-semibold" style={{
+            background: `${eraColors[era]}18`,
+            border: `1px solid ${eraColors[era]}40`,
+            color: eraColors[era],
+          }}>
+            era: {era}
+          </div>
+          <div className="self-start px-3 py-1 rounded-full text-xs font-semibold"
+            style={{ background: 'rgba(148,163,184,0.08)', border: '1px solid rgba(148,163,184,0.18)', color: 'rgba(203,213,225,0.75)' }}>
+            planet lv {planetLevel}
+          </div>
         </div>
 
         {/* Stats */}
@@ -126,6 +131,8 @@ export default function StatsPanel() {
             { icon: '🌿', label: 'planet health', value: health,
               color: health > 60 ? '#34d399' : health > 30 ? '#f59e0b' : '#ef4444',
               glow: health > 60 ? '#34d399' : '#ef4444' },
+            { icon: '🛡️', label: 'barrier', value: shieldLevel * 33.34, color: '#93c5fd', glow: '#93c5fd' },
+            { icon: '🏭', label: 'greenhouse', value: greenhouse, color: '#a3a3a3', glow: '#a3a3a3' },
           ].map(stat => (
             <div key={stat.label} className="space-y-1.5">
               <div className="flex justify-between text-sm">
@@ -150,42 +157,12 @@ export default function StatsPanel() {
             ☠️ no life detected. spark life to begin.
           </div>
         )}
-      </div>
-
-      {/* Sen icon — bottom of sidebar */}
-      <div className="mt-auto pt-4 flex justify-center" style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}>
-        <div
-          className="relative cursor-pointer"
-          onMouseEnter={() => setSenHovered(true)}
-          onMouseLeave={() => setSenHovered(false)}
-        >
-          <img
-            src="/sen.png"
-            alt="sen"
-            style={{
-              width: 32, height: 32,
-              imageRendering: 'pixelated',
-              objectFit: 'contain',
-              opacity: senHovered ? 0.85 : 0.3,
-              transition: 'opacity 0.3s, transform 0.3s',
-              transform: senHovered ? 'scale(1.15) translateY(-2px)' : 'scale(1)',
-              filter: senHovered ? 'drop-shadow(0 0 8px rgba(167,139,250,0.5))' : 'none',
-            }}
-          />
-          {senHovered && (
-            <div
-              style={{
-                position: 'absolute', bottom: '110%', left: '50%', transform: 'translateX(-50%)',
-                background: 'rgba(10,11,30,0.95)', border: '1px solid rgba(167,139,250,0.3)',
-                borderRadius: 8, padding: '5px 10px', whiteSpace: 'nowrap',
-                color: 'rgba(196,181,253,0.9)', fontSize: 12,
-                boxShadow: '0 0 16px rgba(124,58,237,0.2)',
-              }}
-            >
-              hi, i'm sen 👋
-            </div>
-          )}
-        </div>
+        {starStatus !== 'stable' && (
+          <div className="p-3 rounded-lg text-xs text-red-200 text-center"
+            style={{ background: 'rgba(127,29,29,0.18)', border: '1px solid rgba(248,113,113,0.25)' }}>
+            ☀️ star status: {starStatus}
+          </div>
+        )}
       </div>
     </div>
   );

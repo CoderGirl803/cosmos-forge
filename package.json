@@ -2,8 +2,15 @@
   "name": "workspace",
   "version": "0.0.0",
   "license": "MIT",
+  "packageManager": "pnpm@11.0.4",
   "scripts": {
     "preinstall": "sh -c 'rm -f package-lock.json yarn.lock; case \"$npm_execpath:$npm_config_user_agent\" in *pnpm*) ;; *) echo \"Use pnpm instead\" >&2; exit 1 ;; esac'",
+    "dev": "pnpm --filter @workspace/cosmos-forge run dev",
+    "dev:api": "pnpm --filter @workspace/api-server run dev",
+    "progress:push": "node scripts/good-progress.mjs",
+    "test": "pnpm -r --filter \"./artifacts/**\" --if-present run test",
+    "build:app": "pnpm --filter @workspace/cosmos-forge run build",
+    "serve": "pnpm --filter @workspace/cosmos-forge run serve",
     "build": "pnpm run typecheck && pnpm -r --if-present run build",
     "typecheck:libs": "tsc --build",
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"

@@ -1,0 +1,45 @@
+name: Auto Merge
+
+on:
+  pull_request:
+    types:
+      - labeled
+      - synchronize
+      - reopened
+      - ready_for_review
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
+
+permissions:
+  contents: write
+  pull-requests: write
+  checks: read
+
+jobs:
+  merge:
+    if: github.event_name == 'pull_request' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Merge labeled PRs after CI
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          prs="$(gh pr list \
+            --repo "$REPO" \
+            --state open \
+            --label automerge \
+            --json number,isDraft,headRepositoryOwner \
+            --jq '.[] | select(.isDraft == false) | select(.headRepositoryOwner.login == "'${GITHUB_REPOSITORY_OWNER}'") | .number')"
+
+          for pr in $prs; do
+            state="$(gh pr checks "$pr" --repo "$REPO" --watch --required --json state --jq 'map(.state) | unique | join(",")')"
+            if [ "$state" = "SUCCESS" ]; then
+              gh pr merge "$pr" --repo "$REPO" --squash --delete-branch --admin=false
+            fi
+          done

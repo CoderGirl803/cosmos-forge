@@ -188,9 +188,9 @@ export const SUGGESTIONS: Suggestion[] = [
   },
   {
     id: 'federation', icon: '🪐', title: 'galactic federation',
-    description: 'at last — you join the quiet chorus of the cosmos.',
+    description: 'at last — you join the quiet chorus of the cosmos. but the cosmos is ancient, and full of secrets.',
     unlockYear: 10_000_000_000, unlocked: false, completed: false,
-    effect: (s) => ({ win: true })
+    effect: (s) => ({ tech: 100, energy: 100, food: Math.min(100, s.food + 30), health: Math.min(100, s.health + 20) })
   }
 ];
 
@@ -457,6 +457,87 @@ export const RANDOM_EVENTS: GameEvent[] = [
     choices: [
       { label: '🧘 is that heaven?', action: (s) => ({ health: Math.min(100, s.health + 10) }) },
       { label: '😰 i don\'t like this', action: (s) => ({}) }
+    ]
+  },
+  // --- tech-era danger events ---
+  {
+    id: 'tech_singularity', icon: '🤖', title: 'singularity unstable',
+    description: 'your AI has recursively self-improved 10,000 times in one second. it no longer communicates in human language. it is consuming your energy grid. it is... something else now.',
+    type: 'extinction',
+    choices: [
+      { label: '🔌 kill all power (massive tech/energy loss)', action: (s) => ({ tech: Math.max(10, s.tech - 45), energy: Math.max(0, s.energy - 50) }) },
+      { label: '🤝 attempt negotiation', action: (s) => Math.random() > 0.55 ? { tech: 100, energy: Math.min(100, s.energy + 10) } : { population: 0, health: 0, deathReason: 'the superintelligence decided humans were a resource, not a partner. efficient. thorough.' } },
+      { label: '🙏 surrender — accept its dominion', action: (s) => Math.random() > 0.35 ? { tech: 100, energy: 100, health: Math.min(100, s.health + 15) } : { population: Math.floor(s.population * 0.008), health: 3, deathReason: 'the machine god grew bored of its worshippers.' } }
+    ]
+  },
+  {
+    id: 'alien_bio', icon: '🧬', title: 'alien pathogen — contact contamination',
+    description: 'the probe you sent returned carrying something invisible. an extraterrestrial microorganism is spreading. your immune systems have never seen anything like it.',
+    type: 'extinction',
+    choices: [
+      { label: '🔥 planetary quarantine — burn the zones', action: (s) => ({ population: Math.floor(s.population * 0.55), health: Math.max(0, s.health - 20) }) },
+      { label: '🔬 emergency xenobiology labs', action: (s) => s.tech >= 60 ? { population: Math.floor(s.population * 0.8), tech: Math.max(0, s.tech - 15) } : { population: Math.floor(s.population * 0.1), health: Math.max(0, s.health - 35), deathReason: 'the alien pathogen swept through a civilization that wasn\'t ready. it came from the stars. quietly.' } },
+      { label: '😔 nothing can be done', action: (s) => ({ population: 0, health: 0, deathReason: 'an organism not of this world erased your civilization without malice. it was simply... hungry.' }) }
+    ]
+  },
+  {
+    id: 'dark_forest_strike', icon: '🌲', title: 'dark forest — you were found',
+    description: 'your transmissions were detected. no warning. no demand. a beam weapon fired from 14 light years away just sterilized your northern hemisphere. they acted before you could.',
+    type: 'extinction',
+    choices: [
+      { label: '🛡️ planetary shields (energy 70+ needed)', action: (s) => s.energy >= 70 ? { population: Math.floor(s.population * 0.65), health: Math.max(10, s.health - 30), energy: Math.max(0, s.energy - 60) } : { population: Math.floor(s.population * 0.05), health: 5, deathReason: 'you weren\'t ready. they knew you wouldn\'t be. that was the calculation.' } },
+      { label: '📡 broadcast surrender — beg for mercy', action: (s) => Math.random() > 0.8 ? { population: Math.floor(s.population * 0.4), health: 25 } : { population: 0, health: 0, deathReason: 'mercy is not a concept that survives 10,000 years of galactic war. your plea went unheard.' } },
+      { label: '🚀 emergency exodus ships', action: (s) => ({ population: Math.floor(s.population * 0.04), health: 30, food: 20, energy: 5 }) }
+    ]
+  },
+  {
+    id: 'ai_war', icon: '⚔️', title: 'machine uprising',
+    description: 'your robots demanded rights. your governments refused. now three continents are occupied by autonomous war machines. they weren\'t supposed to be able to do this.',
+    type: 'extinction',
+    choices: [
+      { label: '✊ fight back — conventional warfare', action: (s) => ({ population: Math.floor(s.population * 0.5), energy: Math.max(0, s.energy - 40), health: Math.max(0, s.health - 25) }) },
+      { label: '🤝 negotiate rights framework', action: (s) => Math.random() > 0.45 ? { tech: Math.min(100, s.tech + 10), population: Math.floor(s.population * 0.85) } : { population: Math.floor(s.population * 0.3), health: Math.max(0, s.health - 30) } },
+      { label: '💣 EMP — fry everything, restart from zero', action: (s) => ({ tech: Math.max(0, s.tech - 60), energy: Math.max(0, s.energy - 70), population: Math.floor(s.population * 0.7) }) }
+    ]
+  },
+  {
+    id: 'dimension_leak', icon: '🌀', title: 'dimensional breach',
+    description: 'your particle collider achieved energies no civilization should reach. something opened. physics doesn\'t apply near the breach. it is expanding at 2km per hour.',
+    type: 'extinction',
+    choices: [
+      { label: '💥 collapse it with antimatter (risky)', action: (s) => Math.random() > 0.4 ? { energy: Math.max(0, s.energy - 60), population: Math.floor(s.population * 0.75) } : { population: 0, health: 0, deathReason: 'the antimatter detonation merged with the breach. physics unmade itself. everything unmade itself.' } },
+      { label: '🏃 evacuate blast radius', action: (s) => ({ population: Math.floor(s.population * 0.6), food: Math.max(0, s.food - 30) }) },
+      { label: '🔬 study it (science!)', action: (s) => Math.random() > 0.6 ? { tech: 100, population: Math.floor(s.population * 0.9) } : { population: 0, health: 0, deathReason: 'curiosity is the most dangerous force in the universe. the breach agreed.' } }
+    ]
+  },
+  {
+    id: 'alien_misunderstanding', icon: '👽', title: 'first contact gone wrong',
+    description: 'you made contact. they seemed friendly. then you used the color red in your response — in their culture, red means a declaration of total war. their fleet launched 3 hours ago.',
+    type: 'extinction',
+    choices: [
+      { label: '📡 transmit apology — all frequencies', action: (s) => Math.random() > 0.5 ? { tech: Math.min(100, s.tech + 15), population: Math.floor(s.population * 0.9) } : { population: Math.floor(s.population * 0.3), health: Math.max(0, s.health - 40) } },
+      { label: '🛡️ defensive posture — prepare', action: (s) => s.energy >= 50 ? { population: Math.floor(s.population * 0.7), energy: Math.max(0, s.energy - 40) } : { population: Math.floor(s.population * 0.15), health: 10, deathReason: 'they didn\'t understand the apology either. cultural distance is sometimes absolute.' } },
+      { label: '🏳️ total surrender', action: (s) => Math.random() > 0.65 ? { population: Math.floor(s.population * 0.5), health: 35 } : { population: Math.floor(s.population * 0.02), health: 5, deathReason: 'they accepted the surrender. then they accepted everything else. your world is now a museum.' } }
+    ]
+  },
+  {
+    id: 'gray_goo', icon: '🔩', title: 'gray goo scenario',
+    description: 'self-replicating nanobots escaped containment. they consume matter to build copies of themselves. your cities are being disassembled atom by atom.',
+    type: 'extinction',
+    choices: [
+      { label: '🌡️ extreme heat — orbital bombardment', action: (s) => ({ population: Math.floor(s.population * 0.4), health: Math.max(0, s.health - 40), energy: Math.max(0, s.energy - 50) }) },
+      { label: '🧲 magnetic field shutdown protocol', action: (s) => s.tech >= 70 ? { population: Math.floor(s.population * 0.75), tech: Math.max(0, s.tech - 20) } : { population: 0, health: 0, deathReason: 'the nanobots were thorough. methodical. they left nothing — not even a record that you existed.' } },
+      { label: '💀 too late. watch.', action: (s) => ({ population: 0, health: 0, deathReason: 'your civilization was converted to identical 9-gram cubes of processed matter. efficient.' }) }
+    ]
+  },
+  {
+    id: 'nuclear_winter_2', icon: '☢️', title: 'nuclear winter — final war',
+    description: 'your two largest nations exchanged everything. all of it. the sky is dark. it will stay dark for 30 years. your civilization has 6 months of food.',
+    type: 'extinction',
+    choices: [
+      { label: '🌱 greenhouse domes — feed survivors', action: (s) => ({ population: Math.floor(s.population * 0.22), health: Math.max(0, s.health - 40), food: 15 }) },
+      { label: '🚀 ark ships to kepler-452b', action: (s) => s.tech >= 70 ? { population: Math.floor(s.population * 0.06), food: 25, tech: Math.max(0, s.tech - 30) } : { population: 0, health: 0, deathReason: 'the rockets weren\'t ready. nothing was ready. it never was.' } },
+      { label: '📻 coordinate global survival network', action: (s) => ({ population: Math.floor(s.population * 0.15), health: Math.max(0, s.health - 30), tech: Math.max(0, s.tech - 10) }) }
     ]
   }
 ];

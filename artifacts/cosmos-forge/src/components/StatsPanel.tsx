@@ -2,19 +2,28 @@ import React, { useState } from 'react';
 import { useGameStore } from '../hooks/useGameStore';
 
 export default function StatsPanel() {
-  const { population, food, energy, tech, health, year, era, planetName, setPlanetName } = useGameStore();
-  const [editing, setEditing] = useState(false);
-  const [nameInput, setNameInput] = useState('');
+  const {
+    population, food, energy, tech, health, year, era,
+    planetName, setPlanetName, starName, setStarName,
+  } = useGameStore();
 
-  const startEdit = () => {
-    setNameInput(planetName);
-    setEditing(true);
+  const [editingPlanet, setEditingPlanet] = useState(false);
+  const [editingStar, setEditingStar] = useState(false);
+  const [planetInput, setPlanetInput] = useState('');
+  const [starInput, setStarInput] = useState('');
+
+  const startEditPlanet = () => { setPlanetInput(planetName); setEditingPlanet(true); };
+  const finishEditPlanet = () => {
+    const t = planetInput.trim();
+    if (t) setPlanetName(t.toLowerCase());
+    setEditingPlanet(false);
   };
 
-  const finishEdit = () => {
-    const trimmed = nameInput.trim();
-    if (trimmed) setPlanetName(trimmed.toLowerCase());
-    setEditing(false);
+  const startEditStar = () => { setStarInput(starName); setEditingStar(true); };
+  const finishEditStar = () => {
+    const t = starInput.trim();
+    if (t) setStarName(t.toLowerCase());
+    setEditingStar(false);
   };
 
   const formatPopulation = (num: number) => {
@@ -32,15 +41,10 @@ export default function StatsPanel() {
   };
 
   const ProgressBar = ({ value, color, glow }: { value: number; color: string; glow: string }) => (
-    <div className="h-2 w-full rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.05)' }}>
-      <div
-        className="h-full rounded-full transition-all duration-700"
-        style={{
-          width: `${Math.min(100, Math.max(0, value))}%`,
-          background: color,
-          boxShadow: `0 0 8px ${glow}`
-        }}
-      />
+    <div className="h-2 w-full rounded-full overflow-hidden"
+      style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.05)' }}>
+      <div className="h-full rounded-full transition-all duration-700"
+        style={{ width: `${Math.min(100, Math.max(0, value))}%`, background: color, boxShadow: `0 0 8px ${glow}` }} />
     </div>
   );
 
@@ -50,32 +54,27 @@ export default function StatsPanel() {
   };
 
   return (
-    <div className="w-72 flex flex-col p-5 space-y-6 shrink-0 h-full overflow-y-auto" style={{ background: 'rgba(10,11,30,0.7)', backdropFilter: 'blur(12px)', borderRight: '1px solid rgba(255,255,255,0.07)' }}>
+    <div className="w-72 flex flex-col p-5 space-y-5 shrink-0 h-full overflow-y-auto"
+      style={{ background: 'rgba(10,11,30,0.7)', backdropFilter: 'blur(12px)', borderRight: '1px solid rgba(255,255,255,0.07)' }}>
+
       {/* Planet name */}
       <div>
-        {editing ? (
+        {editingPlanet ? (
           <div className="flex items-center gap-2">
             <input
-              autoFocus
-              value={nameInput}
-              onChange={e => setNameInput(e.target.value)}
-              onBlur={finishEdit}
-              onKeyDown={e => { if (e.key === 'Enter') finishEdit(); if (e.key === 'Escape') setEditing(false); }}
+              autoFocus value={planetInput}
+              onChange={e => setPlanetInput(e.target.value)}
+              onBlur={finishEditPlanet}
+              onKeyDown={e => { if (e.key === 'Enter') finishEditPlanet(); if (e.key === 'Escape') setEditingPlanet(false); }}
               className="text-xl font-serif font-bold bg-transparent border-b border-primary outline-none text-transparent bg-clip-text bg-gradient-to-r from-secondary to-primary w-full"
               style={{ maxWidth: 180 }}
             />
-            <button onClick={finishEdit} className="text-xs text-primary">✓</button>
+            <button onClick={finishEditPlanet} className="text-xs text-primary">✓</button>
           </div>
         ) : (
-          <button
-            onClick={startEdit}
-            className="group flex items-center gap-2"
-            title="click to rename"
-          >
-            <h2
-              className="text-2xl font-serif font-bold text-transparent bg-clip-text bg-gradient-to-r from-secondary to-primary"
-              style={{ filter: 'drop-shadow(0 0 12px rgba(6,182,212,0.5))' }}
-            >
+          <button onClick={startEditPlanet} className="group flex items-center gap-2" title="click to rename">
+            <h2 className="text-2xl font-serif font-bold text-transparent bg-clip-text bg-gradient-to-r from-secondary to-primary"
+              style={{ filter: 'drop-shadow(0 0 12px rgba(6,182,212,0.5))' }}>
               {planetName}
             </h2>
             <span className="text-xs text-white/30 group-hover:text-white/60 transition-colors">✏️</span>
@@ -84,16 +83,38 @@ export default function StatsPanel() {
         <div className="text-white/40 text-xs font-mono tracking-wider mt-1">{formatYear(year)}</div>
       </div>
 
+      {/* Star name */}
+      <div className="flex items-center gap-2">
+        {editingStar ? (
+          <div className="flex items-center gap-2 w-full">
+            <span className="text-amber-400/60 text-xs">⭐</span>
+            <input
+              autoFocus value={starInput}
+              onChange={e => setStarInput(e.target.value)}
+              onBlur={finishEditStar}
+              onKeyDown={e => { if (e.key === 'Enter') finishEditStar(); if (e.key === 'Escape') setEditingStar(false); }}
+              className="text-sm bg-transparent border-b border-amber-400/40 outline-none text-amber-300 w-full"
+            />
+            <button onClick={finishEditStar} className="text-xs text-amber-400">✓</button>
+          </div>
+        ) : (
+          <button onClick={startEditStar} className="group flex items-center gap-1.5" title="rename your star">
+            <span className="text-amber-400/60 text-xs">⭐</span>
+            <span className="text-xs font-mono text-amber-300/70 group-hover:text-amber-300 transition-colors">
+              {starName}
+            </span>
+            <span className="text-xs text-white/20 group-hover:text-white/50 transition-colors">✏️</span>
+          </button>
+        )}
+      </div>
+
       {/* Era badge */}
-      <div
-        className="self-start px-3 py-1 rounded-full text-xs font-semibold"
-        style={{
-          background: `${eraColors[era]}20`,
-          border: `1px solid ${eraColors[era]}50`,
-          color: eraColors[era],
-          boxShadow: `0 0 10px ${eraColors[era]}30`
-        }}
-      >
+      <div className="self-start px-3 py-1 rounded-full text-xs font-semibold" style={{
+        background: `${eraColors[era]}20`,
+        border: `1px solid ${eraColors[era]}50`,
+        color: eraColors[era],
+        boxShadow: `0 0 10px ${eraColors[era]}30`
+      }}>
         era: {era}
       </div>
 
@@ -110,7 +131,11 @@ export default function StatsPanel() {
           { icon: '🌾', label: 'food', value: food, color: '#22c55e', glow: '#22c55e' },
           { icon: '⚡', label: 'energy', value: energy, color: '#facc15', glow: '#facc15' },
           { icon: '🔬', label: 'technology', value: tech, color: '#22d3ee', glow: '#22d3ee' },
-          { icon: '🌿', label: 'planet health', value: health, color: health > 60 ? '#34d399' : health > 30 ? '#f59e0b' : '#ef4444', glow: health > 60 ? '#34d399' : '#ef4444' },
+          {
+            icon: '🌿', label: 'planet health', value: health,
+            color: health > 60 ? '#34d399' : health > 30 ? '#f59e0b' : '#ef4444',
+            glow: health > 60 ? '#34d399' : '#ef4444'
+          },
         ].map(stat => (
           <div key={stat.label} className="space-y-1.5">
             <div className="flex justify-between text-sm">
@@ -122,9 +147,17 @@ export default function StatsPanel() {
         ))}
       </div>
 
-      {/* Extinction warning */}
+      {/* Danger thresholds */}
+      {tech >= 90 && energy >= 80 && (
+        <div className="p-3 rounded-lg text-xs text-amber-300 text-center animate-pulse"
+          style={{ background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.25)' }}>
+          ⚠️ civilization power approaching critical threshold
+        </div>
+      )}
+
       {population === 0 && (
-        <div className="p-3 rounded-lg text-xs text-red-300 text-center" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)' }}>
+        <div className="p-3 rounded-lg text-xs text-red-300 text-center"
+          style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)' }}>
           ☠️ no life detected. spark life to begin.
         </div>
       )}

@@ -1,11 +1,11 @@
-import React, { useState, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence, PanInfo } from 'framer-motion';
 import { useGameStore } from '../hooks/useGameStore';
 import StatsPanel from './StatsPanel';
 import EventLog from './EventLog';
 import EventPopup from './EventPopup';
 import SignalPanel from './SignalPanel';
-import { Play, Pause, FastForward, ChevronUp, ChevronDown } from 'lucide-react';
+import { Play, Pause, FastForward } from 'lucide-react';
 
 const MIN_ZOOM = 0.15;
 const MAX_ZOOM = 2.0;
@@ -13,12 +13,8 @@ const CONTAINER = 4000;
 const C = CONTAINER / 2; // 2000 = center
 
 interface SolarObj {
-  id: string;
-  x: number; y: number;
-  size: number;
-  color: string;
-  bg: string;
-  label: string;
+  id: string; x: number; y: number; size: number;
+  color: string; bg: string; label: string;
   type: 'rock' | 'smallPlanet' | 'largePlanet' | 'sun';
 }
 
@@ -42,19 +38,38 @@ const DRAGGABLE_ROCKS = [
 ];
 
 export default function CivilizationView() {
-  const { advanceTime, activeEvent, activeDisaster, planetName, addLog, addMoon, moons } = useGameStore();
+  const {
+    advanceTime, activeEvent, activeDisaster, planetName, starName,
+    addLog, addMoon, moons, blackHoleAlert, escapeBlackHole, tickBlackHole,
+  } = useGameStore();
   const [playing, setPlaying] = useState(false);
   const [zoom, setZoom] = useState(1.0);
   const [capturedRocks, setCapturedRocks] = useState<Set<string>>(new Set());
+  const [bhPulse, setBhPulse] = useState(false);
 
   const planetBodyRef = useRef<HTMLDivElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
 
-  React.useEffect(() => {
+  // Auto-advance time
+  useEffect(() => {
     if (!playing) return;
     const interval = setInterval(() => advanceTime(10), 1200);
     return () => clearInterval(interval);
   }, [playing, advanceTime]);
+
+  // Black hole countdown tick
+  useEffect(() => {
+    if (!blackHoleAlert) return;
+    const timer = setInterval(tickBlackHole, 1000);
+    return () => clearInterval(timer);
+  }, [blackHoleAlert, tickBlackHole]);
+
+  // Black hole pulse urgency
+  useEffect(() => {
+    if (!blackHoleAlert) { setBhPulse(false); return; }
+    const interval = setInterval(() => setBhPulse(p => !p), blackHoleAlert.timeLeft < 10 ? 300 : 700);
+    return () => clearInterval(interval);
+  }, [blackHoleAlert]);
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
@@ -82,10 +97,23 @@ export default function CivilizationView() {
   const stars = useMemo(() =>
     Array.from({ length: 200 }).map((_, i) => ({
       id: i, x: Math.random() * 100, y: Math.random() * 100,
-      size: Math.random() * 2.2 + 0.5, opacity: Math.random() * 0.55 + 0.08, delay: Math.random() * 6
+      size: Math.random() * 2.2 + 0.5, opacity: Math.random() * 0.55 + 0.08,
     })), []);
 
-  const zoomHint = zoom < 0.5 ? 'solar system view' : zoom < 0.75 ? 'zoom out to see more' : '';
+  // Black hole — visible when zoom is low enough (within ~1400 px of center in container space)
+  const BH_X = 600; const BH_Y = 600;
+  const bhDistFromCenter = Math.hypot(BH_X - C, BH_Y - C);
+  const bhVisible = blackHoleAlert && zoom < 0.55;
+
+  // Home star — at (C, C+1300), visible at zoom < 0.3
+  const starDistFromCenter = 1300;
+  const starVisible = (1 - zoom / 0.35) > 0.05;
+  const starOpacity = Math.min(1, Math.max(0, (0.32 - zoom) / 0.15));
+
+  const zoomHint = blackHoleAlert
+    ? '⚫ zoom out to see the black hole!'
+    : zoom < 0.5 ? 'solar system view'
+    : zoom < 0.75 ? 'scroll to zoom out · drag rocks to create moons' : '';
 
   return (
     <div className={`w-full h-full flex flex-col relative overflow-hidden bg-background ${activeDisaster ? 'screen-shake' : ''}`}>
@@ -97,7 +125,61 @@ export default function CivilizationView() {
         ))}
       </div>
 
-      <div className="flex-1 flex overflow-hidden z-10 relative">
+      {/* Black hole danger banner */}
+      <AnimatePresence>
+        {blackHoleAlert && (
+          <motion.div
+            initial={{ y: -80, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: -80, opacity: 0 }}
+            className="absolute top-0 left-0 right-0 z-50 flex items-center justify-between px-5 py-3"
+            style={{
+              background: bhPulse
+                ? 'rgba(88,0,0,0.92)'
+                : 'rgba(60,0,0,0.88)',
+              border: '1px solid rgba(220,38,38,0.5)',
+              backdropFilter: 'blur(12px)',
+              boxShadow: '0 0 40px rgba(220,38,38,0.3)',
+              transition: 'background 0.3s',
+            }}
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">⚫</span>
+              <div>
+                <div className="text-red-300 font-bold text-sm tracking-wide">
+                  gravitational anomaly — black hole incoming
+                </div>
+                <div className="text-red-400/60 text-xs">
+                  zoom out to see it · drag it away from your planet or hit emergency boost
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="text-center">
+                <div className="font-mono font-bold text-2xl"
+                  style={{ color: blackHoleAlert.timeLeft < 10 ? '#ef4444' : '#fca5a5' }}>
+                  {blackHoleAlert.timeLeft}s
+                </div>
+                <div className="text-xs text-red-400/50">remaining</div>
+              </div>
+              <button
+                onClick={escapeBlackHole}
+                className="px-4 py-2 rounded-full font-bold text-sm transition-all hover:scale-105"
+                style={{
+                  background: 'rgba(220,38,38,0.25)',
+                  border: '2px solid rgba(220,38,38,0.6)',
+                  color: '#fca5a5',
+                  boxShadow: '0 0 20px rgba(220,38,38,0.3)',
+                }}
+              >
+                ⚡ emergency boost!
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="flex-1 flex overflow-hidden z-10 relative" style={{ paddingTop: blackHoleAlert ? 64 : 0 }}>
         <StatsPanel />
 
         {/* Planet viewport */}
@@ -107,7 +189,7 @@ export default function CivilizationView() {
           onWheel={handleWheel}
           style={{ cursor: 'crosshair' }}
         >
-          {/* Solar system container — scales around center */}
+          {/* Solar system container */}
           <div
             style={{
               position: 'absolute',
@@ -128,26 +210,18 @@ export default function CivilizationView() {
               if (opacity < 0.01) return null;
               const isGiant = obj.type === 'largePlanet' || obj.type === 'sun';
               return (
-                <div
-                  key={obj.id}
-                  style={{
-                    position: 'absolute',
-                    left: obj.x - obj.size,
-                    top: obj.y - obj.size,
-                    width: obj.size * 2,
-                    height: obj.size * 2,
-                    opacity,
-                    transition: 'opacity 0.4s',
-                  }}
-                >
-                  <div className="w-full h-full rounded-full"
-                    style={{
-                      background: obj.bg,
-                      boxShadow: isGiant
-                        ? `0 0 ${obj.size * 1.5}px ${obj.color}60, 0 0 ${obj.size * 3}px ${obj.color}20`
-                        : `0 0 ${obj.size * 0.8}px ${obj.color}50`,
-                    }}
-                  />
+                <div key={obj.id} style={{
+                  position: 'absolute',
+                  left: obj.x - obj.size, top: obj.y - obj.size,
+                  width: obj.size * 2, height: obj.size * 2,
+                  opacity, transition: 'opacity 0.4s',
+                }}>
+                  <div className="w-full h-full rounded-full" style={{
+                    background: obj.bg,
+                    boxShadow: isGiant
+                      ? `0 0 ${obj.size * 1.5}px ${obj.color}60, 0 0 ${obj.size * 3}px ${obj.color}20`
+                      : `0 0 ${obj.size * 0.8}px ${obj.color}50`,
+                  }} />
                   <div style={{
                     position: 'absolute', top: '110%', left: '50%', transform: 'translateX(-50%)',
                     color: 'rgba(255,255,255,0.35)', fontSize: 12, whiteSpace: 'nowrap', fontFamily: 'monospace'
@@ -158,25 +232,94 @@ export default function CivilizationView() {
               );
             })}
 
-            {/* ── PLANET AT CENTER ── */}
-            <div
-              style={{
-                position: 'absolute',
-                left: C,
-                top: C,
-                transform: 'translate(-50%, -50%)',
-                pointerEvents: 'auto',
-                zIndex: 10,
-              }}
-            >
-              {/* Atmosphere glow */}
-              <div className="absolute rounded-full pointer-events-none"
+            {/* HOME STAR — below the planet, visible at low zoom */}
+            <div style={{
+              position: 'absolute',
+              left: C - 90, top: C + starDistFromCenter - 90,
+              width: 180, height: 180,
+              opacity: starOpacity,
+              transition: 'opacity 0.6s',
+              pointerEvents: 'none',
+            }}>
+              <div style={{
+                width: '100%', height: '100%', borderRadius: '50%',
+                background: 'radial-gradient(circle, #fff8e0 0%, #fef08a 30%, #fb923c 60%, #f97316 80%, transparent 100%)',
+                boxShadow: '0 0 80px rgba(251,191,36,0.9), 0 0 160px rgba(251,146,60,0.5), 0 0 280px rgba(251,146,60,0.2)',
+              }} />
+              <div style={{
+                position: 'absolute', top: '115%', left: '50%', transform: 'translateX(-50%)',
+                color: 'rgba(251,191,36,0.7)', fontSize: 13, whiteSpace: 'nowrap', fontFamily: 'monospace',
+                textShadow: '0 0 12px rgba(251,191,36,0.5)',
+                letterSpacing: '0.12em',
+              }}>
+                ⭐ {starName}
+              </div>
+            </div>
+
+            {/* BLACK HOLE — appears when alert active */}
+            {blackHoleAlert && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.3 }}
+                animate={{ opacity: 1, scale: 1 }}
                 style={{
-                  inset: '-50%',
-                  background: 'radial-gradient(circle, rgba(6,182,212,0.09) 0%, transparent 70%)',
-                  filter: 'blur(22px)',
+                  position: 'absolute',
+                  left: BH_X - 80, top: BH_Y - 80,
+                  width: 160, height: 160,
                 }}
-              />
+              >
+                {/* Outer accretion ring */}
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 3, repeat: Infinity, ease: 'linear' }}
+                  style={{
+                    position: 'absolute', inset: -30,
+                    borderRadius: '50%',
+                    border: '4px solid transparent',
+                    borderTopColor: 'rgba(251,146,60,0.6)',
+                    borderRightColor: 'rgba(251,191,36,0.4)',
+                    boxShadow: '0 0 30px rgba(251,146,60,0.4), inset 0 0 20px rgba(0,0,0,0.8)',
+                  }}
+                />
+                {/* Inner vortex */}
+                <motion.div
+                  animate={{ rotate: -360 }}
+                  transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
+                  style={{
+                    position: 'absolute', inset: -5,
+                    borderRadius: '50%',
+                    border: '2px solid rgba(139,0,0,0.7)',
+                    boxShadow: '0 0 20px rgba(139,0,0,0.5)',
+                  }}
+                />
+                {/* Event horizon */}
+                <div style={{
+                  position: 'absolute', inset: 10,
+                  borderRadius: '50%',
+                  background: 'radial-gradient(circle, #000 50%, rgba(30,0,0,0.8) 100%)',
+                  boxShadow: 'inset 0 0 30px rgba(0,0,0,1), 0 0 50px rgba(0,0,0,0.9)',
+                }} />
+                <div style={{
+                  position: 'absolute', top: '130%', left: '50%', transform: 'translateX(-50%)',
+                  color: 'rgba(220,38,38,0.7)', fontSize: 12, whiteSpace: 'nowrap', fontFamily: 'monospace',
+                  textShadow: '0 0 8px rgba(220,38,38,0.5)',
+                }}>
+                  ⚫ singularity
+                </div>
+              </motion.div>
+            )}
+
+            {/* PLANET AT CENTER */}
+            <div style={{
+              position: 'absolute', left: C, top: C,
+              transform: 'translate(-50%, -50%)',
+              pointerEvents: 'auto', zIndex: 10,
+            }}>
+              {/* Atmosphere glow */}
+              <div className="absolute rounded-full pointer-events-none" style={{
+                inset: '-50%',
+                background: 'radial-gradient(circle, rgba(6,182,212,0.09) 0%, transparent 70%)',
+                filter: 'blur(22px)',
+              }} />
 
               {/* Moons orbiting */}
               {moons.map((moon, i) => {
@@ -187,19 +330,12 @@ export default function CivilizationView() {
                     key={moon.id}
                     animate={{ rotate: 360 }}
                     transition={{ duration: dur, repeat: Infinity, ease: 'linear' }}
-                    style={{
-                      position: 'absolute',
-                      top: '50%', left: '50%',
-                      width: 0, height: 0,
-                      zIndex: 5,
-                    }}
+                    style={{ position: 'absolute', top: '50%', left: '50%', width: 0, height: 0, zIndex: 5 }}
                   >
                     <div style={{
                       position: 'absolute',
-                      left: r - moon.size,
-                      top: -moon.size,
-                      width: moon.size * 2,
-                      height: moon.size * 2,
+                      left: r - moon.size, top: -moon.size,
+                      width: moon.size * 2, height: moon.size * 2,
                       borderRadius: '50%',
                       background: `radial-gradient(circle at 35% 30%, ${moon.color}ff, ${moon.color}44)`,
                       boxShadow: `0 0 ${moon.size * 1.5}px ${moon.color}60`,
@@ -208,17 +344,14 @@ export default function CivilizationView() {
                 );
               })}
 
-              {/* Orbit rings for moons */}
+              {/* Moon orbit rings */}
               {moons.map((moon, i) => {
                 const r = 115 + i * 38;
                 return (
                   <div key={`ring-${moon.id}`} style={{
-                    position: 'absolute',
-                    top: '50%', left: '50%',
-                    width: r * 2, height: r * 2,
-                    marginLeft: -r, marginTop: -r,
-                    borderRadius: '50%',
-                    border: '1px solid rgba(255,255,255,0.05)',
+                    position: 'absolute', top: '50%', left: '50%',
+                    width: r * 2, height: r * 2, marginLeft: -r, marginTop: -r,
+                    borderRadius: '50%', border: '1px solid rgba(255,255,255,0.05)',
                     pointerEvents: 'none',
                   }} />
                 );
@@ -226,15 +359,13 @@ export default function CivilizationView() {
 
               {/* Planet body */}
               <div
+                ref={planetBodyRef}
                 style={{
-                  position: 'relative',
-                  width: 220,
-                  height: 220,
+                  position: 'relative', width: 220, height: 220,
                   background: 'radial-gradient(circle at 35% 35%, #67e8f9, #0891b2, #065f80, #0a4050)',
                   borderRadius: '50%',
                   boxShadow: '0 0 60px rgba(6,182,212,0.5), inset -20px -20px 40px rgba(0,0,0,0.6), inset 8px 8px 25px rgba(103,232,249,0.25)',
                 }}
-                ref={planetBodyRef}
               >
                 {/* Continents */}
                 <div className="absolute inset-0 rounded-full opacity-40" style={{
@@ -244,7 +375,7 @@ export default function CivilizationView() {
                     radial-gradient(ellipse 25% 18% at 22% 68%, rgba(34,197,94,0.55) 0%, transparent 55%)
                   `
                 }} />
-                {/* Cloud layer */}
+                {/* Clouds */}
                 <motion.div
                   animate={{ rotate: 360 }}
                   transition={{ duration: 55, repeat: Infinity, ease: 'linear' }}
@@ -256,7 +387,7 @@ export default function CivilizationView() {
                     `
                   }}
                 />
-                {/* Atmosphere rim */}
+                {/* Rim atmosphere */}
                 <div className="absolute rounded-full pointer-events-none" style={{
                   inset: -8,
                   border: '2px solid rgba(6,182,212,0.18)',
@@ -266,11 +397,9 @@ export default function CivilizationView() {
 
               {/* Planet label */}
               <div style={{
-                position: 'absolute',
-                top: '100%', marginTop: 16,
+                position: 'absolute', top: '100%', marginTop: 16,
                 left: '50%', transform: 'translateX(-50%)',
-                color: 'rgba(6,182,212,0.55)',
-                fontSize: 14, letterSpacing: '0.2em',
+                color: 'rgba(6,182,212,0.55)', fontSize: 14, letterSpacing: '0.2em',
                 whiteSpace: 'nowrap', fontFamily: 'monospace',
                 textShadow: '0 0 12px rgba(6,182,212,0.4)',
               }}>
@@ -279,7 +408,7 @@ export default function CivilizationView() {
             </div>
           </div>
 
-          {/* ── DRAGGABLE ROCKS (unscaled, viewport-space) ── */}
+          {/* DRAGGABLE ROCKS (viewport-space) */}
           <div className="absolute inset-0 pointer-events-none z-20">
             {DRAGGABLE_ROCKS.filter(r => !capturedRocks.has(r.id)).map(rock => {
               const visible = zoom < 0.85;
@@ -296,10 +425,8 @@ export default function CivilizationView() {
                     position: 'absolute',
                     top: `calc(50% + ${rock.dy}px)`,
                     left: `calc(50% + ${rock.dx}px)`,
-                    width: rock.size * 2,
-                    height: rock.size * 2,
-                    marginTop: -rock.size,
-                    marginLeft: -rock.size,
+                    width: rock.size * 2, height: rock.size * 2,
+                    marginTop: -rock.size, marginLeft: -rock.size,
                     cursor: visible ? 'grab' : 'default',
                     pointerEvents: visible ? 'auto' : 'none',
                     opacity: visible ? scale : 0,
@@ -307,11 +434,8 @@ export default function CivilizationView() {
                     zIndex: 20,
                   }}
                 >
-                  <div className="w-full h-full rounded-full flex items-center justify-center"
-                    style={{
-                      background: rock.bg,
-                      boxShadow: `0 0 ${rock.size * 0.8}px ${rock.color}60`,
-                    }}
+                  <div className="w-full h-full rounded-full"
+                    style={{ background: rock.bg, boxShadow: `0 0 ${rock.size * 0.8}px ${rock.color}60` }}
                   />
                   <div style={{
                     position: 'absolute', top: '115%', left: '50%', transform: 'translateX(-50%)',
@@ -328,14 +452,10 @@ export default function CivilizationView() {
           <div className="absolute top-4 right-4 flex flex-col gap-1.5 z-30">
             <button onClick={() => setZoom(z => Math.min(MAX_ZOOM, z + 0.2))}
               className="w-8 h-8 rounded-full flex items-center justify-center font-bold transition-all hover:scale-110"
-              style={{ background: 'rgba(124,58,237,0.2)', border: '1px solid rgba(124,58,237,0.3)', color: '#a78bfa' }}>
-              +
-            </button>
+              style={{ background: 'rgba(124,58,237,0.2)', border: '1px solid rgba(124,58,237,0.3)', color: '#a78bfa' }}>+</button>
             <button onClick={() => setZoom(z => Math.max(MIN_ZOOM, z - 0.2))}
               className="w-8 h-8 rounded-full flex items-center justify-center font-bold transition-all hover:scale-110"
-              style={{ background: 'rgba(124,58,237,0.2)', border: '1px solid rgba(124,58,237,0.3)', color: '#a78bfa' }}>
-              −
-            </button>
+              style={{ background: 'rgba(124,58,237,0.2)', border: '1px solid rgba(124,58,237,0.3)', color: '#a78bfa' }}>−</button>
             <div className="text-center text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.25)' }}>
               {Math.round(zoom * 100)}%
             </div>
@@ -344,14 +464,13 @@ export default function CivilizationView() {
           {/* Zoom hint */}
           {zoomHint && (
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 text-xs px-3 py-1.5 rounded-full"
-              style={{ color: 'rgba(255,255,255,0.35)', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.05)' }}>
+              style={{
+                color: blackHoleAlert ? 'rgba(252,165,165,0.8)' : 'rgba(255,255,255,0.35)',
+                background: blackHoleAlert ? 'rgba(60,0,0,0.5)' : 'rgba(0,0,0,0.3)',
+                border: `1px solid ${blackHoleAlert ? 'rgba(220,38,38,0.3)' : 'rgba(255,255,255,0.05)'}`,
+                animation: blackHoleAlert ? 'pulse 1s infinite' : 'none',
+              }}>
               {zoomHint}
-            </div>
-          )}
-          {zoom >= 0.75 && (
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 text-xs"
-              style={{ color: 'rgba(255,255,255,0.18)' }}>
-              scroll to zoom out · drag rocks to create moons
             </div>
           )}
         </div>

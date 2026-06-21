@@ -8,14 +8,17 @@ export default function DisasterAlert() {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    if (activeDisaster) {
-      setVisible(true);
-      const t = setTimeout(() => {
-        setVisible(false);
-        setTimeout(dismissDisaster, 400);
-      }, 5500);
-      return () => clearTimeout(t);
+    if (!activeDisaster) {
+      return;
     }
+
+    setVisible(true);
+    const t = setTimeout(() => {
+      setVisible(false);
+      setTimeout(dismissDisaster, 400);
+    }, 5500);
+
+    return () => clearTimeout(t);
   }, [activeDisaster, dismissDisaster]);
 
   return (

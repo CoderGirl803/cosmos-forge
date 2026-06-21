@@ -12,6 +12,11 @@ out-tsc
 node_modules
 .pnpm-store/
 
+# environment
+.env
+.env.*
+!.env.example
+
 # IDEs and editors
 /.idea
 .project
@@ -30,11 +35,15 @@ node_modules
 
 # misc
 /.sass-cache
+/.vite
+.vite/
 /connect.lock
 /coverage
 /libpeerconnection.log
+*.log
 npm-debug.log
 yarn-error.log
+pnpm-debug.log
 testem.log
 /typings
 
@@ -48,3 +57,6 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+.upm/
+.replit
+replit.nix

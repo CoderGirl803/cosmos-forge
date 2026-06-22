@@ -41,10 +41,10 @@ pnpm run build      # typecheck and build every package
 The API server is optional for normal local play, but it is required for daily universe emails. Run it in a second terminal:
 
 ```sh
-PORT=5000 pnpm run dev:api
+PORT=5050 pnpm run dev:api
 ```
 
-Daily email subscriptions use `POST /api/universe-emails/subscribe`. New subscribers receive an immediate welcome email, then recurring stat emails with the subject `Your Universe Awaits!`. Set `RESEND_API_KEY` and `UNIVERSE_EMAIL_FROM` to send real emails. Without `RESEND_API_KEY`, local email messages are written to `artifacts/api-server/.data/universe-email-outbox.jsonl` so you can inspect them without sending anything.
+Daily email subscriptions use `POST /api/universe-emails/subscribe`. New subscribers receive an immediate welcome email, then recurring stat emails with the subject `Your Universe Awaits!`. The Vite app proxies `/api` to `API_PROXY_TARGET`, defaulting to `http://127.0.0.1:5050`. Set `RESEND_API_KEY` and `UNIVERSE_EMAIL_FROM` to send real emails. Without `RESEND_API_KEY`, local email messages are written to `artifacts/api-server/.data/universe-email-outbox.jsonl` so you can inspect them without sending anything.
 
 ## Project Map
 

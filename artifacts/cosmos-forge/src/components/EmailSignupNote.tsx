@@ -34,11 +34,12 @@ export async function syncUniverseEmailStats() {
   if (!email) return;
 
   try {
-    await fetch('/api/universe-emails/stats', {
+    const response = await fetch('/api/universe-emails/stats', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, stats: currentStats() }),
     });
+    if (!response.ok) throw new Error(`Stats sync failed with ${response.status}`);
   } catch {
     localStorage.setItem('cosmos-forge-email-stats', JSON.stringify(currentStats()));
   }
@@ -62,14 +63,19 @@ export default function EmailSignupNote() {
     setSaved(true);
 
     try {
-      await fetch('/api/universe-emails/subscribe', {
+      const response = await fetch('/api/universe-emails/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: trimmed, stats: currentStats() }),
       });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.message ?? `Signup failed with ${response.status}`);
+      }
       setStatus('done. check your inbox now.');
-    } catch {
-      setStatus('saved here. run the api server to send daily emails.');
+    } catch (err) {
+      console.error(err);
+      setStatus('saved here. email server is not connected yet.');
     }
   };
 

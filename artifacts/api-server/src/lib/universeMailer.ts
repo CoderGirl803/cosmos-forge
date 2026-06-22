@@ -23,6 +23,12 @@ interface Subscriber {
   stats: UniverseStats;
 }
 
+type DeliveryMode = "resend" | "outbox";
+
+interface DeliveryResult {
+  mode: DeliveryMode;
+}
+
 const defaultStats: UniverseStats = {
   planetName: "terra-9",
   starName: "sol-prime",
@@ -45,6 +51,16 @@ const outboxPath =
   path.resolve(process.cwd(), ".data", "universe-email-outbox.jsonl");
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+export function getUniverseEmailStatus() {
+  return {
+    provider: process.env["RESEND_API_KEY"] ? "resend" : "local-outbox",
+    realInboxDelivery: Boolean(process.env["RESEND_API_KEY"]),
+    from: process.env["UNIVERSE_EMAIL_FROM"] ?? "Cosmos Forge <onboarding@resend.dev>",
+    subscribersPath: dataPath,
+    outboxPath,
+  };
+}
 
 async function ensureDir(filePath: string) {
   await mkdir(path.dirname(filePath), { recursive: true });
@@ -128,7 +144,7 @@ function renderWelcomeEmail(): { subject: string; text: string } {
   };
 }
 
-async function sendMessage(email: string, message: { subject: string; text: string }) {
+async function sendMessage(email: string, message: { subject: string; text: string }): Promise<DeliveryResult> {
   const apiKey = process.env["RESEND_API_KEY"];
   const from = process.env["UNIVERSE_EMAIL_FROM"] ?? "Cosmos Forge <onboarding@resend.dev>";
 
@@ -150,7 +166,7 @@ async function sendMessage(email: string, message: { subject: string; text: stri
     if (!response.ok) {
       throw new Error(`Resend email failed with ${response.status}: ${await response.text()}`);
     }
-    return;
+    return { mode: "resend" };
   }
 
   await ensureDir(outboxPath);
@@ -159,14 +175,15 @@ async function sendMessage(email: string, message: { subject: string; text: stri
     `${JSON.stringify({ to: email, sentAt: new Date().toISOString(), ...message })}\n`,
     { flag: "a" },
   );
+  return { mode: "outbox" };
 }
 
 async function sendEmail(email: string, stats: UniverseStats) {
-  await sendMessage(email, renderEmail(stats));
+  return sendMessage(email, renderEmail(stats));
 }
 
 async function sendWelcomeEmail(email: string) {
-  await sendMessage(email, renderWelcomeEmail());
+  return sendMessage(email, renderWelcomeEmail());
 }
 
 export async function subscribeUniverseEmail(email: string, stats?: Partial<UniverseStats>) {
@@ -179,9 +196,10 @@ export async function subscribeUniverseEmail(email: string, stats?: Partial<Univ
   const existing = subscribers.find((subscriber) => subscriber.email === normalizedEmail);
   const now = new Date().toISOString();
   let welcomeSentAt = existing?.welcomeSentAt;
+  let welcomeDelivery: DeliveryResult | null = null;
 
   if (!welcomeSentAt) {
-    await sendWelcomeEmail(normalizedEmail);
+    welcomeDelivery = await sendWelcomeEmail(normalizedEmail);
     welcomeSentAt = now;
   }
 
@@ -198,7 +216,7 @@ export async function subscribeUniverseEmail(email: string, stats?: Partial<Univ
     ...subscribers.filter((subscriber) => subscriber.email !== normalizedEmail),
   ]);
 
-  return { email: normalizedEmail };
+  return { email: normalizedEmail, welcomeDelivery };
 }
 
 export async function updateUniverseStats(email: string, stats: Partial<UniverseStats>) {

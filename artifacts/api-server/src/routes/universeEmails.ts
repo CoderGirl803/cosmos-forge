@@ -1,10 +1,15 @@
 import { Router, type IRouter } from "express";
 import {
+  getUniverseEmailStatus,
   subscribeUniverseEmail,
   updateUniverseStats,
 } from "../lib/universeMailer";
 
 const router: IRouter = Router();
+
+router.get("/universe-emails/status", (_req, res) => {
+  res.json({ ok: true, ...getUniverseEmailStatus() });
+});
 
 router.post("/universe-emails/subscribe", async (req, res, next) => {
   try {

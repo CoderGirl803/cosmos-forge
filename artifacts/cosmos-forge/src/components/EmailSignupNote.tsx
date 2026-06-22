@@ -72,7 +72,11 @@ export default function EmailSignupNote() {
         const body = await response.json().catch(() => ({}));
         throw new Error(body.message ?? `Signup failed with ${response.status}`);
       }
-      setStatus('done. check your inbox now.');
+      const body = await response.json().catch(() => ({}));
+      const mode = body.welcomeDelivery?.mode;
+      setStatus(mode === 'resend'
+        ? 'done. check your inbox now.'
+        : 'saved to local outbox. connect resend for real inbox mail.');
     } catch (err) {
       console.error(err);
       setStatus('saved here. email server is not connected yet.');

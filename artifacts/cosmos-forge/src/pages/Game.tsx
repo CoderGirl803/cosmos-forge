@@ -5,6 +5,7 @@ import ParticleField from '../components/ParticleField';
 import CivilizationView from '../components/CivilizationView';
 import DisasterAlert from '../components/DisasterAlert';
 import DeathScreen from '../components/DeathScreen';
+import { syncUniverseEmailStats, UNIVERSE_EMAIL_KEY } from '../components/EmailSignupNote';
 import { motion, AnimatePresence } from 'framer-motion';
 
 function CursorTrail() {
@@ -137,6 +138,27 @@ function BigBangFlash() {
   );
 }
 
+function UniverseEmailStatsSync() {
+  const { phase, year, population, food, energy, tech, health, moons } = useGameStore();
+
+  useEffect(() => {
+    if (!localStorage.getItem(UNIVERSE_EMAIL_KEY)) return;
+    void syncUniverseEmailStats();
+  }, [phase, year, population, food, energy, tech, health, moons.length]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      if (localStorage.getItem(UNIVERSE_EMAIL_KEY)) {
+        void syncUniverseEmailStats();
+      }
+    }, 60_000);
+
+    return () => window.clearInterval(timer);
+  }, []);
+
+  return null;
+}
+
 export default function Game() {
   const { phase, resetGame, deathReason } = useGameStore();
   const [senHovered, setSenHovered] = useState(false);
@@ -145,6 +167,7 @@ export default function Game() {
     <div className="fixed inset-0 bg-background text-foreground overflow-hidden star-cursor">
       <SoftMusic />
       <CursorTrail />
+      <UniverseEmailStatsSync />
       {phase !== 'bigbang' && phase !== 'lose' && (
         <div
           className="fixed bottom-1 right-1 z-[80] opacity-55 hover:opacity-100 transition-opacity"

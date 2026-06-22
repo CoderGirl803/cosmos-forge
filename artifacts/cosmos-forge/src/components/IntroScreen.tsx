@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useGameStore } from '../hooks/useGameStore';
+import EmailSignupNote from './EmailSignupNote';
 
 export default function IntroScreen() {
   const setPhase = useGameStore(state => state.setPhase);
@@ -56,6 +57,8 @@ export default function IntroScreen() {
           />
         ))}
       </div>
+
+      {!merged && <EmailSignupNote />}
 
       {/* Title block — fixed center */}
       <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none" style={{ paddingBottom: '30vh', opacity: merged ? 0 : 1, transition: 'opacity 0.15s' }}>

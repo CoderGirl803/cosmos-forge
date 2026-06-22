@@ -38,11 +38,13 @@ pnpm run typecheck  # typecheck the whole workspace
 pnpm run build      # typecheck and build every package
 ```
 
-The API server scaffold is present but the current game UI runs locally without it. To run the API server separately, provide a Postgres `DATABASE_URL` and a port:
+The API server is optional for normal local play, but it is required for daily universe emails. Run it in a second terminal:
 
 ```sh
-PORT=5000 DATABASE_URL=postgres://user:password@localhost:5432/cosmos_forge pnpm run dev:api
+PORT=5000 pnpm run dev:api
 ```
+
+Daily email subscriptions use `POST /api/universe-emails/subscribe`. Set `RESEND_API_KEY` and `UNIVERSE_EMAIL_FROM` to send real emails with the subject `Your Universe Awaits!`. Without `RESEND_API_KEY`, local email messages are written to `artifacts/api-server/.data/universe-email-outbox.jsonl` so you can inspect them without sending anything.
 
 ## Project Map
 

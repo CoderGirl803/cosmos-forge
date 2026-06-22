@@ -60,3 +60,7 @@ Thumbs.db
 .upm/
 .replit
 replit.nix
+
+# local app data
+.data/
+artifacts/api-server/.data/

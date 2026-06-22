@@ -8,6 +8,7 @@ export interface Moon { id: string; color: string; size: number; orbitSpeed: num
 interface SentSignal { id: string; to: string; sentAt: number; response?: SignalResponse; responded: boolean; }
 
 interface TimedAlert { timeLeft: number; }
+interface BattleState { id: string; from: string; player: number; enemy: number; round: number; }
 
 interface GameState {
   phase: GamePhase;
@@ -36,6 +37,10 @@ interface GameState {
   signals: SentSignal[];
   pendingSignalResponse: (SignalResponse & { signalId: string }) | null;
   moons: Moon[];
+  seenEventIds: string[];
+  recentDisasters: string[];
+  battleCount: number;
+  activeBattle: BattleState | null;
 
   setPhase: (phase: GamePhase) => void;
   addLog: (text: string) => void;
@@ -49,6 +54,8 @@ interface GameState {
   sendSignal: (targetPlanet: string) => string;
   deliverSignalResponse: (signalId: string) => void;
   dismissSignalResponse: () => void;
+  engageSignalBattle: () => void;
+  resolveBattleChoice: (choice: 'charge' | 'shield' | 'tech') => void;
   dismissDisaster: () => void;
   addMoon: (moon: Moon) => void;
   escapeBlackHole: () => void;
@@ -86,6 +93,10 @@ const mkInitial = () => ({
   signals: [] as SentSignal[],
   pendingSignalResponse: null,
   moons: [] as Moon[],
+  seenEventIds: [] as string[],
+  recentDisasters: [] as string[],
+  battleCount: 0,
+  activeBattle: null as BattleState | null,
 });
 
 function getDeathReason(eventId: string | undefined, era: Era): string {
@@ -166,22 +177,29 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     // Tech overdose
     if (state.tech >= 95 && state.energy >= 88 && !state.activeEvent && !(updates.activeEvent) && Math.random() < 0.10) {
-      const evt = RANDOM_EVENTS.find(e => e.id === 'tech_singularity');
-      if (evt) updates.activeEvent = evt;
+      const evt = RANDOM_EVENTS.find(e => e.id === 'tech_singularity' && !state.seenEventIds.includes(e.id));
+      if (evt) {
+        updates.activeEvent = evt;
+        updates.seenEventIds = [...state.seenEventIds, evt.id].slice(-30);
+      }
     }
 
     // Rare stellar crisis
     const starChance = state.era === 'cosmic' ? 0.08 : state.era === 'digital' ? 0.035 : 0.012;
     if (hasHumans && state.population > 0 && state.year >= 2_000_000_000 && state.starStatus === 'stable' && !state.activeEvent && !(updates.activeEvent) && Math.random() < starChance) {
-      const evt = RANDOM_EVENTS.find(e => e.id === 'stellar_instability');
-      if (evt) updates.activeEvent = evt;
+      const evt = RANDOM_EVENTS.find(e => e.id === 'stellar_instability' && !state.seenEventIds.includes(e.id));
+      if (evt) {
+        updates.activeEvent = evt;
+        updates.seenEventIds = [...state.seenEventIds, evt.id].slice(-30);
+      }
       updates.starStatus = 'flare';
     }
 
     // Random events
     const eventChance = years >= 1_000_000_000 ? 0.45 : years >= 1_000_000 ? 0.35 : 0.25;
     if (Math.random() < eventChance && !state.activeEvent && !(updates.activeEvent) && state.population > 0) {
-      const pool = RANDOM_EVENTS.filter(e => {
+      let pool = RANDOM_EVENTS.filter(e => {
+        if (state.seenEventIds.includes(e.id)) return false;
         if (e.id === 'tech_singularity') return false;
         if (e.type === 'paradox' && !hasHumans) return false;
         if (['ai_war', 'tech_singularity', 'nuclear_war', 'nuclear_war_2', 'nuclear_winter_2', 'gray_goo', 'dimension_leak'].includes(e.id) && !hasHumans) return false;
@@ -190,14 +208,23 @@ export const useGameStore = create<GameState>((set, get) => ({
         if (e.id === 'nuclear_war_2' && state.era === 'primordial') return false;
         return true;
       });
-      if (pool.length) updates.activeEvent = pool[Math.floor(Math.random() * pool.length)];
+      if (!pool.length) {
+        pool = RANDOM_EVENTS.filter(e => !state.seenEventIds.slice(-5).includes(e.id) && (hasHumans || (e.type !== 'paradox' && e.type !== 'extinction')));
+      }
+      if (pool.length) {
+        const evt = pool[Math.floor(Math.random() * pool.length)];
+        updates.activeEvent = evt;
+        updates.seenEventIds = [...state.seenEventIds, evt.id].slice(-30);
+      }
     }
 
     // Natural disaster
     const disasterChance = years >= 1_000_000_000 ? 0.28 : years >= 1_000_000 ? 0.18 : 0.10;
     if (hasHumans && Math.random() < disasterChance && !state.activeDisaster && !(updates.activeEvent) && state.population > 0) {
-      const d = DISASTERS[Math.floor(Math.random() * DISASTERS.length)];
+      const disasterPool = DISASTERS.filter(d => !state.recentDisasters.includes(d.title));
+      const d = (disasterPool.length ? disasterPool : DISASTERS)[Math.floor(Math.random() * (disasterPool.length || DISASTERS.length))];
       updates.activeDisaster = d;
+      updates.recentDisasters = [...state.recentDisasters, d.title].slice(-4);
       const shieldReduction = Math.min(0.8, state.shieldLevel * 0.22);
       const kill = Math.max(0, d.deathPercent / 100 - shieldReduction);
       updates.population = Math.floor((updates.population ?? state.population) * (1 - kill));
@@ -346,6 +373,62 @@ export const useGameStore = create<GameState>((set, get) => ({
       };
     }
     return { ...effects, pendingSignalResponse: null };
+  }),
+
+  engageSignalBattle: () => set((state) => {
+    const resp = state.pendingSignalResponse;
+    if (!resp || (resp.type !== 'war' && resp.type !== 'invasion') || state.battleCount >= 2) return state;
+    const player = Math.max(18, Math.floor(35 + state.tech * 0.7 + state.energy * 0.35 + Math.random() * 38));
+    const enemy = Math.max(25, Math.floor(55 + Math.random() * 75 + (resp.type === 'invasion' ? 22 : 0)));
+    return {
+      pendingSignalResponse: null,
+      battleCount: state.battleCount + 1,
+      activeBattle: { id: resp.signalId, from: resp.from, player, enemy, round: 1 },
+      logs: [{ id: Math.random().toString(36), time: `yr ${fmtYear(state.year)}`, text: `⚔️ battle engaged against ${resp.from}` }, ...state.logs].slice(0, 80),
+    };
+  }),
+
+  resolveBattleChoice: (choice) => set((state) => {
+    const battle = state.activeBattle;
+    if (!battle) return state;
+    const techBoost = choice === 'tech' ? Math.floor(state.tech * 0.5) : 0;
+    const shieldBoost = choice === 'shield' ? state.shieldLevel * 18 + 18 : 0;
+    const chargeBoost = choice === 'charge' ? 26 : 0;
+    const playerHit = Math.floor(18 + Math.random() * 36 + techBoost + chargeBoost);
+    const enemyHit = Math.floor(16 + Math.random() * 34 - shieldBoost * 0.35);
+    const nextEnemy = Math.max(0, battle.enemy - playerHit);
+    const nextPlayer = Math.max(0, battle.player - Math.max(5, enemyHit));
+    const logText = choice === 'tech'
+      ? '🔬 tech weapons fired'
+      : choice === 'shield'
+      ? '🛡️ shields absorbed the first strike'
+      : '🚀 fleet charged the alien line';
+
+    if (nextEnemy <= 0) {
+      return {
+        activeBattle: null,
+        tech: Math.min(100, state.tech + 4),
+        energy: Math.max(0, state.energy - (choice === 'tech' ? 14 : 8)),
+        logs: [{ id: Math.random().toString(36), time: `yr ${fmtYear(state.year)}`, text: `${logText}. victory against ${battle.from}.` }, ...state.logs].slice(0, 80),
+      };
+    }
+    if (nextPlayer <= 0 || battle.round >= 3) {
+      const savedByDamage = nextEnemy < battle.enemy * 0.35;
+      return {
+        activeBattle: null,
+        population: Math.floor(state.population * (savedByDamage ? 0.74 : 0.42)),
+        health: Math.max(0, state.health - (savedByDamage ? 24 : 48)),
+        energy: Math.max(0, state.energy - 22),
+        phase: savedByDamage ? state.phase : 'lose',
+        deathReason: savedByDamage ? state.deathReason : `the fleet from ${battle.from} broke through after three waves. your defenses failed because the alien army outnumbered and outgunned your last line.`,
+        logs: [{ id: Math.random().toString(36), time: `yr ${fmtYear(state.year)}`, text: `${logText}. the battle cost your world dearly.` }, ...state.logs].slice(0, 80),
+      };
+    }
+    return {
+      activeBattle: { ...battle, player: nextPlayer, enemy: nextEnemy, round: battle.round + 1 },
+      energy: Math.max(0, state.energy - (choice === 'tech' ? 10 : 4)),
+      logs: [{ id: Math.random().toString(36), time: `yr ${fmtYear(state.year)}`, text: `${logText}. armies still fighting.` }, ...state.logs].slice(0, 80),
+    };
   }),
 
   resetGame: () => set(mkInitial()),

@@ -108,6 +108,7 @@ export default function CivilizationView() {
     blackHoleAlert, escapeBlackHole, tickBlackHole,
     pandemicAlert, escapePandemic, tickPandemic,
     nuclearAlert, escapeNuclear, tickNuclear,
+    activeBattle,
     sendSignal, deliverSignalResponse,
   } = useGameStore();
 
@@ -122,6 +123,7 @@ export default function CivilizationView() {
   const [playMs, setPlayMs] = useState(0);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
+  const [moonOffsets, setMoonOffsets] = useState<Record<string, { x: number; y: number }>>({});
 
   const planetBodyRef = useRef<HTMLDivElement>(null);
   const panStartRef = useRef({ x: 0, y: 0, panX: 0, panY: 0, moved: false });
@@ -140,6 +142,12 @@ export default function CivilizationView() {
   useEffect(() => { if (!blackHoleAlert) return; const iv = setInterval(tickBlackHole, 1000); return () => clearInterval(iv); }, [blackHoleAlert, tickBlackHole]);
   useEffect(() => { if (!pandemicAlert) return; const iv = setInterval(tickPandemic, 1000); return () => clearInterval(iv); }, [pandemicAlert, tickPandemic]);
   useEffect(() => { if (!nuclearAlert) return; const iv = setInterval(tickNuclear, 1000); return () => clearInterval(iv); }, [nuclearAlert, tickNuclear]);
+  useEffect(() => {
+    if (activeBattle) {
+      setZoom(1.35);
+      setPan({ x: 0, y: 0 });
+    }
+  }, [activeBattle]);
 
   // Alert pulse
   const activeAlert = blackHoleAlert ?? pandemicAlert ?? nuclearAlert;
@@ -316,6 +324,10 @@ export default function CivilizationView() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <div className="absolute top-3 left-1/2 -translate-x-1/2 z-40">
+        <SignalPanel />
+      </div>
 
       <div className="flex-1 flex overflow-hidden z-10 relative" style={{ paddingTop: alertInfo ? 64 : 0 }}>
         <StatsPanel />
@@ -667,15 +679,31 @@ export default function CivilizationView() {
                         pointerEvents: 'none',
                       }} />
                       <motion.div
+                        drag
+                        dragMomentum={false}
+                        onDragEnd={(_, info) => {
+                          setMoonOffsets(current => ({
+                            ...current,
+                            [moon.id]: {
+                              x: (current[moon.id]?.x ?? 0) + info.offset.x / Math.max(0.3, zoom),
+                              y: (current[moon.id]?.y ?? 0) + info.offset.y / Math.max(0.3, zoom),
+                            },
+                          }));
+                        }}
+                        whileDrag={{ scale: 1.35, zIndex: 20 }}
                         animate={{ rotate: 360 }}
                         transition={{ duration: 6 / moon.orbitSpeed, repeat: Infinity, ease: 'linear' }}
                         style={{ position: 'absolute', top: '50%', left: '50%', width: 0, height: 0, zIndex: 5 }}
                       >
                         <div style={{
-                          position: 'absolute', left: r - moon.size, top: -moon.size,
+                          position: 'absolute',
+                          left: r - moon.size + (moonOffsets[moon.id]?.x ?? 0),
+                          top: -moon.size + (moonOffsets[moon.id]?.y ?? 0),
                           width: moon.size * 2, height: moon.size * 2, borderRadius: '50%',
                           background: `radial-gradient(circle at 35% 30%, ${moon.color}ff, ${moon.color}44)`,
                           boxShadow: `0 0 ${moon.size * 1.5}px ${moon.color}60`,
+                          cursor: 'grab',
+                          pointerEvents: 'auto',
                         }} />
                       </motion.div>
                     </React.Fragment>
@@ -871,6 +899,7 @@ export default function CivilizationView() {
           { label: '+1k yrs', years: 1_000, color: '#a78bfa' },
           { label: '+1M yrs', years: 1_000_000, color: '#22d3ee' },
           { label: '+1B yrs', years: 1_000_000_000, color: '#fbbf24' },
+          { label: '+10B yrs', years: 10_000_000_000, color: '#fb7185' },
         ] as const).map(btn => (
           <button
             key={btn.label}
@@ -883,10 +912,6 @@ export default function CivilizationView() {
           </button>
         ))}
 
-        <div className="w-px h-6 bg-white/10 mx-1" />
-
-        {/* Signal panel — prominently in bottom bar */}
-        <SignalPanel />
       </div>
 
       <EventPopup event={activeEvent} />

@@ -224,7 +224,7 @@ export default function Game() {
 
       {phase === 'lose' && (
         <DeathScreen
-          reason={deathReason || 'the last light on your planet went out. the stars remain, indifferent and beautiful.'}
+          reason={deathReason || 'the last light on your planet went out. the universe awaits.'}
           onRestart={resetGame}
         />
       )}

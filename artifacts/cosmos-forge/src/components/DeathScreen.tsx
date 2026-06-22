@@ -137,7 +137,7 @@ export default function DeathScreen({ reason, onRestart }: Props) {
                 )}
 
                 <div className="text-xs tracking-widest uppercase mt-2" style={{ color: 'rgba(255,255,255,0.12)' }}>
-                  the stars remain, indifferent and beautiful.
+                  the universe awaits
                 </div>
               </motion.div>
 

@@ -67,7 +67,7 @@ export default function EmailSignupNote() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: trimmed, stats: currentStats() }),
       });
-      setStatus('done. check your inbox tomorrow.');
+      setStatus('done. check your inbox now.');
     } catch {
       setStatus('saved here. run the api server to send daily emails.');
     }

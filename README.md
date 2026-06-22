@@ -44,7 +44,7 @@ The API server is optional for normal local play, but it is required for daily u
 PORT=5000 pnpm run dev:api
 ```
 
-Daily email subscriptions use `POST /api/universe-emails/subscribe`. Set `RESEND_API_KEY` and `UNIVERSE_EMAIL_FROM` to send real emails with the subject `Your Universe Awaits!`. Without `RESEND_API_KEY`, local email messages are written to `artifacts/api-server/.data/universe-email-outbox.jsonl` so you can inspect them without sending anything.
+Daily email subscriptions use `POST /api/universe-emails/subscribe`. New subscribers receive an immediate welcome email, then recurring stat emails with the subject `Your Universe Awaits!`. Set `RESEND_API_KEY` and `UNIVERSE_EMAIL_FROM` to send real emails. Without `RESEND_API_KEY`, local email messages are written to `artifacts/api-server/.data/universe-email-outbox.jsonl` so you can inspect them without sending anything.
 
 ## Project Map
 

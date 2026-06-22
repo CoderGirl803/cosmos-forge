@@ -19,6 +19,7 @@ interface Subscriber {
   email: string;
   createdAt: string;
   lastSentAt?: string;
+  welcomeSentAt?: string;
   stats: UniverseStats;
 }
 
@@ -104,10 +105,32 @@ function renderEmail(stats: UniverseStats): { subject: string; text: string } {
   };
 }
 
-async function sendEmail(email: string, stats: UniverseStats) {
+function renderWelcomeEmail(): { subject: string; text: string } {
+  return {
+    subject: "Welcome to Cosmos Forge",
+    text: [
+      "hey,",
+      "",
+      "thanks for checking out cosmos forge.",
+      "",
+      "somewhere out there, a tiny civilization just came into existence, and for some reason they've decided you're qualified to lead them.",
+      "",
+      "your job is to help them survive, grow, and maybe one day reach the stars.",
+      "",
+      "i'm still actively working on the game, so if you find bugs, have ideas, or your civilization somehow starts worshipping potatoes, feel free to let me know.",
+      "",
+      "have fun, and good luck.",
+      "",
+      "your citizens are counting on you.",
+      "",
+      "- sen, the girl who built the game",
+    ].join("\n"),
+  };
+}
+
+async function sendMessage(email: string, message: { subject: string; text: string }) {
   const apiKey = process.env["RESEND_API_KEY"];
   const from = process.env["UNIVERSE_EMAIL_FROM"] ?? "Cosmos Forge <onboarding@resend.dev>";
-  const message = renderEmail(stats);
 
   if (apiKey) {
     const response = await fetch("https://api.resend.com/emails", {
@@ -138,6 +161,14 @@ async function sendEmail(email: string, stats: UniverseStats) {
   );
 }
 
+async function sendEmail(email: string, stats: UniverseStats) {
+  await sendMessage(email, renderEmail(stats));
+}
+
+async function sendWelcomeEmail(email: string) {
+  await sendMessage(email, renderWelcomeEmail());
+}
+
 export async function subscribeUniverseEmail(email: string, stats?: Partial<UniverseStats>) {
   const normalizedEmail = email.trim().toLowerCase();
   if (!emailPattern.test(normalizedEmail)) {
@@ -146,10 +177,19 @@ export async function subscribeUniverseEmail(email: string, stats?: Partial<Univ
 
   const subscribers = await readSubscribers();
   const existing = subscribers.find((subscriber) => subscriber.email === normalizedEmail);
+  const now = new Date().toISOString();
+  let welcomeSentAt = existing?.welcomeSentAt;
+
+  if (!welcomeSentAt) {
+    await sendWelcomeEmail(normalizedEmail);
+    welcomeSentAt = now;
+  }
+
   const next: Subscriber = {
     email: normalizedEmail,
-    createdAt: existing?.createdAt ?? new Date().toISOString(),
+    createdAt: existing?.createdAt ?? now,
     lastSentAt: existing?.lastSentAt,
+    welcomeSentAt,
     stats: normalizeStats(stats ?? existing?.stats),
   };
 

@@ -175,6 +175,24 @@ export const SUGGESTIONS: Suggestion[] = [
     effect: (s) => ({ tech: Math.min(100, s.tech + 15), era: 'cosmic' as Era })
   },
   {
+    id: 'orbital_barrier', icon: '🛡️', title: 'orbital barrier',
+    description: 'build a visible defense ring that can break asteroids before impact.',
+    unlockYear: 5_100_000_000, unlocked: false, completed: false,
+    effect: (s) => ({ shieldLevel: Math.min(3, (s.shieldLevel ?? 0) + 1), energy: Math.max(0, s.energy - 12), planetLevel: Math.max(s.planetLevel ?? 1, 2) })
+  },
+  {
+    id: 'climate_industry', icon: '🏭', title: 'planetary industry',
+    description: 'level up production, but greenhouse gases become visible in the atmosphere.',
+    unlockYear: 4_600_000_000, unlocked: false, completed: false,
+    effect: (s) => ({ energy: Math.min(100, s.energy + 28), tech: Math.min(100, s.tech + 10), greenhouse: Math.min(100, (s.greenhouse ?? 0) + 28), health: Math.max(0, s.health - 12), planetLevel: Math.max(s.planetLevel ?? 1, 2) })
+  },
+  {
+    id: 'carbon_drawdown', icon: '🌿', title: 'carbon drawdown',
+    description: 'clean the atmosphere and cool the planet, at the cost of energy.',
+    unlockYear: 4_900_000_000, unlocked: false, completed: false,
+    effect: (s) => ({ greenhouse: Math.max(0, (s.greenhouse ?? 0) - 35), health: Math.min(100, s.health + 18), energy: Math.max(0, s.energy - 18), planetLevel: Math.max(s.planetLevel ?? 1, 3) })
+  },
+  {
     id: 'ai', icon: '🤖', title: 'ai singularity',
     description: 'a mind greater than the sum of all minds emerges.',
     unlockYear: 5_500_000_000, unlocked: false, completed: false,
@@ -195,6 +213,46 @@ export const SUGGESTIONS: Suggestion[] = [
 ];
 
 export const RANDOM_EVENTS: GameEvent[] = [
+  {
+    id: 'stellar_instability', icon: '☀️', title: 'stellar instability',
+    description: 'your star convulses. the photosphere tears open in a flare bright enough to bleach oceans. it may settle, explode into a supernova, or collapse into a black hole.',
+    type: 'extinction',
+    choices: [
+      { label: '🛡️ reinforce orbital barriers', action: (s) => (s.shieldLevel ?? 0) >= 1 ? { energy: Math.max(0, s.energy - 35), health: Math.max(10, s.health - 8), starStatus: 'stable' } : { population: Math.floor(s.population * 0.55), health: Math.max(0, s.health - 32), starStatus: 'flare' } },
+      { label: '🚀 push the planet outward', action: (s) => s.tech >= 65 ? { energy: Math.max(0, s.energy - 55), orbitDecay: Math.max(0, (s.orbitDecay ?? 0) - 0.35), starStatus: 'stable' } : { population: Math.floor(s.population * 0.35), health: Math.max(0, s.health - 45), starStatus: 'supernova', deathReason: 'the engines were not ready. the supernova erased the inner system in white fire.' } },
+      { label: '🔭 observe and learn', action: (s) => Math.random() > 0.7 ? { tech: Math.min(100, s.tech + 18), starStatus: 'blackhole', health: Math.max(0, s.health - 25) } : { population: Math.floor(s.population * 0.18), health: 5, starStatus: 'supernova', deathReason: 'your scientists collected perfect data. then the star detonated.' } }
+    ]
+  },
+  {
+    id: 'shield_paradox', icon: '🛡️', title: 'the shield paradox',
+    description: 'your orbital barrier saves cities from asteroids, but it traps heat and blocks migratory satellites. security is changing the planet it protects.',
+    type: 'paradox',
+    choices: [
+      { label: 'raise the shield higher (+safety, +heat)', action: (s) => ({ shieldLevel: Math.min(3, (s.shieldLevel ?? 0) + 1), greenhouse: Math.min(100, (s.greenhouse ?? 0) + 16), energy: Math.max(0, s.energy - 18) }) },
+      { label: 'vent the barrier (-safety, +health)', action: (s) => ({ shieldLevel: Math.max(0, (s.shieldLevel ?? 0) - 1), greenhouse: Math.max(0, (s.greenhouse ?? 0) - 18), health: Math.min(100, s.health + 12) }) },
+      { label: 'let cities vote sector by sector', action: (s) => ({ tech: Math.min(100, s.tech + 6), health: Math.max(0, s.health - 6), population: Math.floor(s.population * 0.97) }) }
+    ]
+  },
+  {
+    id: 'greenhouse_paradox', icon: '🏭', title: 'the greenhouse bargain',
+    description: 'cheap energy can end scarcity, but every smokestack dims the sky. your people ask whether a richer planet is worth a sick one.',
+    type: 'paradox',
+    choices: [
+      { label: 'keep burning fuel (+energy, -health)', action: (s) => ({ energy: Math.min(100, s.energy + 22), greenhouse: Math.min(100, (s.greenhouse ?? 0) + 22), health: Math.max(0, s.health - 18) }) },
+      { label: 'ration industry (-energy, +health)', action: (s) => ({ energy: Math.max(0, s.energy - 16), greenhouse: Math.max(0, (s.greenhouse ?? 0) - 20), health: Math.min(100, s.health + 14) }) },
+      { label: 'invent carbon capture (tech 55+)', action: (s) => s.tech >= 55 ? { tech: Math.min(100, s.tech + 8), greenhouse: Math.max(0, (s.greenhouse ?? 0) - 34), energy: Math.max(0, s.energy - 10) } : { greenhouse: Math.min(100, (s.greenhouse ?? 0) + 12), health: Math.max(0, s.health - 10) } }
+    ]
+  },
+  {
+    id: 'uplift_paradox', icon: '🧠', title: 'the uplift question',
+    description: 'another intelligent species emerges in your oceans. they ask for a nation. your maps say the sea already belongs to you.',
+    type: 'paradox',
+    choices: [
+      { label: 'recognize ocean sovereignty', action: (s) => ({ tech: Math.min(100, s.tech + 10), food: Math.max(0, s.food - 10), health: Math.min(100, s.health + 8) }) },
+      { label: 'contain them for study', action: (s) => ({ tech: Math.min(100, s.tech + 18), health: Math.max(0, s.health - 16), population: Math.floor(s.population * 0.94) }) },
+      { label: 'share the planet constitution', action: (s) => Math.random() > 0.35 ? { tech: Math.min(100, s.tech + 12), health: Math.min(100, s.health + 10) } : { population: Math.floor(s.population * 0.82), health: Math.max(0, s.health - 18) } }
+    ]
+  },
   // --- disasters ---
   {
     id: 'asteroid_small', icon: '☄️', title: 'asteroid incoming!',

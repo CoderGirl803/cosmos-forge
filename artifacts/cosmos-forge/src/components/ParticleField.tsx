@@ -72,41 +72,25 @@ export default function ParticleField() {
       let ironCount = 0, plasmaCount = 0;
 
       particlesRef.current.forEach((p, idx) => {
-        if (!isFormed) {
-          p.x += p.vx; p.y += p.vy;
-          if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
-          if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
+        p.x += p.vx; p.y += p.vy;
+        if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
+        if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
 
-          // Elastic collisions
-          for (let j = idx + 1; j < Math.min(idx + 8, particlesRef.current.length); j++) {
-            const q = particlesRef.current[j];
-            const dx = q.x - p.x, dy = q.y - p.y;
-            const dist = Math.hypot(dx, dy);
-            const minD = p.radius + q.radius + 1;
-            if (dist < minD && dist > 0) {
-              const nx = dx / dist, ny = dy / dist;
-              const relV = (p.vx - q.vx) * nx + (p.vy - q.vy) * ny;
-              if (relV > 0) { p.vx -= relV * nx; p.vy -= relV * ny; q.vx += relV * nx; q.vy += relV * ny; }
-            }
+        // Elastic collisions
+        for (let j = idx + 1; j < Math.min(idx + 8, particlesRef.current.length); j++) {
+          const q = particlesRef.current[j];
+          const dx = q.x - p.x, dy = q.y - p.y;
+          const dist = Math.hypot(dx, dy);
+          const minD = p.radius + q.radius + 1;
+          if (dist < minD && dist > 0) {
+            const nx = dx / dist, ny = dy / dist;
+            const relV = (p.vx - q.vx) * nx + (p.vy - q.vy) * ny;
+            if (relV > 0) { p.vx -= relV * nx; p.vy -= relV * ny; q.vx += relV * nx; q.vy += relV * ny; }
           }
-          if (Math.random() < 0.012) {
-            const ci = TYPES.indexOf(p.type);
-            if (ci < TYPES.length - 1) { p.type = TYPES[ci + 1]; checkDiscovered(p.type); }
-          }
-        } else {
-          if (p.orbitAngle === undefined) {
-            const dx = p.x - cx, dy = p.y - cy;
-            p.orbitRadius = Math.max(55, Math.hypot(dx, dy));
-            p.orbitAngle = Math.atan2(dy, dx);
-          }
-          const speed = 0.0015 + (idx % 7) * 0.00025;
-          p.orbitAngle! += speed;
-          p.x = cx + Math.cos(p.orbitAngle!) * p.orbitRadius!;
-          p.y = cy + Math.sin(p.orbitAngle!) * p.orbitRadius!;
-          if (Math.random() < 0.001) {
-            const ci = TYPES.indexOf(p.type);
-            if (ci < TYPES.length - 1) { p.type = TYPES[ci + 1]; checkDiscovered(p.type); }
-          }
+        }
+        if (Math.random() < (isFormed ? 0.004 : 0.012)) {
+          const ci = TYPES.indexOf(p.type);
+          if (ci < TYPES.length - 1) { p.type = TYPES[ci + 1]; checkDiscovered(p.type); }
         }
 
         if (p.type === 'Fe') ironCount++;
@@ -122,7 +106,7 @@ export default function ParticleField() {
         ctx.shadowBlur = 0;
       });
 
-      if (!isFormed && ironCount >= 5 && plasmaCount >= 5) {
+      if (!isFormed && plasmaCount >= 1) {
         starFormedRef.current = true;
         starFormedTimeRef.current = timestamp;
         setTimeout(() => {
@@ -132,6 +116,7 @@ export default function ParticleField() {
       }
 
       if (isFormed) {
+        if (starFormedTimeRef.current === 0) starFormedTimeRef.current = timestamp;
         orbitTimeRef.current += 0.008;
         const ot = orbitTimeRef.current;
         const elapsed = (timestamp - starFormedTimeRef.current) / 1000;

@@ -34,7 +34,10 @@ describe("useGameStore", () => {
     expect(state.population).toBe(500_000);
     expect(state.health).toBe(95);
     expect(state.suggestions.find((s) => s.id === "spark_life")?.completed).toBe(true);
-    expect(state.logs[0].text).toContain("spark life achieved");
+    expect(state.logs.some((log) => log.text.includes("spark life achieved"))).toBe(true);
+    expect(state.unlockedAchievements).toContain("spark");
+    expect(state.cosmicScore).toBeGreaterThan(0);
+    expect(state.streak).toBe(1);
   });
 
   it("only advances time while civilization is active", () => {

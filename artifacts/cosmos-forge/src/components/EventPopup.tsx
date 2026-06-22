@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GameEvent } from '../data/gameData';
 import { useGameStore } from '../hooks/useGameStore';
@@ -39,6 +39,55 @@ function choiceMeta(totalChoices: number, idx: number, type: string): { label: s
 
 export default function EventPopup({ event }: { event: GameEvent | null }) {
   const { resolveEvent } = useGameStore();
+  const [countdown, setCountdown] = useState<number | null>(null);
+  const isAsteroidEvent = event?.id.startsWith('asteroid') ?? false;
+  const choices = event?.choices && event.choices.length > 1
+    ? event.choices
+    : event?.type === 'paradox'
+    ? [
+        ...(event.choices ?? []),
+        {
+          label: '🔬 turn it into science (+tech, -energy)',
+          action: (s: any) => ({ tech: Math.min(100, s.tech + 8), energy: Math.max(0, s.energy - 8) }),
+        },
+        {
+          label: '🧘 accept uncertainty (+health, -tech)',
+          action: (s: any) => ({ health: Math.min(100, s.health + 6), tech: Math.max(0, s.tech - 3) }),
+        },
+        {
+          label: '🚪 ignore it and stabilize society',
+          action: (s: any) => ({ food: Math.min(100, s.food + 4), population: Math.floor(s.population * 0.99) }),
+        },
+      ].slice(0, 4)
+    : event?.choices ?? [];
+
+  useEffect(() => {
+    if (!isAsteroidEvent || !event) {
+      setCountdown(null);
+      return;
+    }
+
+    setCountdown(5);
+    const timer = window.setInterval(() => {
+      setCountdown(current => {
+        if (current === null) return current;
+        if (current <= 1) {
+          window.clearInterval(timer);
+          const fallback = event.choices?.[event.choices.length - 1];
+          if (fallback) {
+            window.setTimeout(() => {
+              const updates = fallback.action(useGameStore.getState());
+              resolveEvent(updates);
+            }, 0);
+          }
+          return 0;
+        }
+        return current - 1;
+      });
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [event, isAsteroidEvent, resolveEvent]);
 
   return (
     <AnimatePresence>
@@ -47,7 +96,7 @@ export default function EventPopup({ event }: { event: GameEvent | null }) {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="absolute inset-0 z-50 flex items-center justify-center"
+          className="fixed inset-0 z-50 flex items-start justify-center px-4 pt-8 pb-28"
           style={{ background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(6px)' }}
         >
           <motion.div
@@ -55,7 +104,7 @@ export default function EventPopup({ event }: { event: GameEvent | null }) {
             animate={{ scale: 1, y: 0 }}
             exit={{ scale: 0.88, y: 30 }}
             transition={{ type: 'spring', stiffness: 280, damping: 22 }}
-            className="max-w-lg w-full mx-4 rounded-2xl p-7 relative overflow-hidden"
+            className="max-w-lg w-full max-h-[calc(100vh-10rem)] overflow-y-auto rounded-2xl p-7 relative"
             style={{
               background: `linear-gradient(135deg, rgba(10,11,30,0.95), rgba(15,18,45,0.95))`,
               border: `1.5px solid ${typeStyles[event.type]?.border ?? '#475569'}`,
@@ -79,6 +128,24 @@ export default function EventPopup({ event }: { event: GameEvent | null }) {
                 🧠 philosophical paradox
               </div>
             )}
+            {isAsteroidEvent && countdown !== null && (
+              <div
+                className="mb-4 flex items-center justify-between gap-4 rounded-2xl px-4 py-3"
+                style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.35)' }}
+              >
+                <div className="text-left">
+                  <div className="text-xs uppercase tracking-[0.22em]" style={{ color: 'rgba(252,165,165,0.62)' }}>
+                    impact countdown
+                  </div>
+                  <div className="text-xs mt-1" style={{ color: 'rgba(255,255,255,0.46)' }}>
+                    zoom out to watch it cross the system
+                  </div>
+                </div>
+                <div className="font-mono text-4xl font-bold" style={{ color: '#f87171' }}>
+                  {countdown}s
+                </div>
+              </div>
+            )}
 
             <div className="flex flex-col items-center text-center space-y-3 relative z-10">
               <span className="text-6xl mb-1">{event.icon}</span>
@@ -86,8 +153,8 @@ export default function EventPopup({ event }: { event: GameEvent | null }) {
               <p className="text-white/65 text-sm leading-relaxed max-w-sm">{event.description}</p>
 
               <div className="w-full space-y-2 pt-4">
-                {event.choices?.map((choice, idx) => {
-                  const meta = choiceMeta(event.choices?.length ?? 0, idx, event.type);
+                {choices.map((choice, idx) => {
+                  const meta = choiceMeta(choices.length, idx, event.type);
                   return (
                     <div key={idx} className="relative">
                       <button

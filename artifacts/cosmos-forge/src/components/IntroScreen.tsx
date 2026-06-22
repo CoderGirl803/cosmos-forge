@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useGameStore } from '../hooks/useGameStore';
+import EmailSignupNote from './EmailSignupNote';
 
 export default function IntroScreen() {
   const setPhase = useGameStore(state => state.setPhase);
@@ -21,8 +22,8 @@ export default function IntroScreen() {
       setMerged(true);
       setTimeout(() => {
         setPhase('bigbang');
-        setTimeout(() => setPhase('particles'), 1500);
-      }, 400);
+        setTimeout(() => setPhase('particles'), 620);
+      }, 120);
     }
   };
 
@@ -42,7 +43,7 @@ export default function IntroScreen() {
       style={{ userSelect: 'none' }}
     >
       {/* Stars */}
-      <div className="absolute inset-0 pointer-events-none">
+      <div className="absolute inset-0 pointer-events-none" style={{ opacity: merged ? 0 : 1, transition: 'opacity 0.2s' }}>
         {stars.map(s => (
           <div
             key={s.id}
@@ -57,8 +58,10 @@ export default function IntroScreen() {
         ))}
       </div>
 
+      {!merged && <EmailSignupNote />}
+
       {/* Title block — fixed center */}
-      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none" style={{ paddingBottom: '30vh' }}>
+      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none" style={{ paddingBottom: '30vh', opacity: merged ? 0 : 1, transition: 'opacity 0.15s' }}>
         <motion.h1
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
@@ -99,6 +102,7 @@ export default function IntroScreen() {
         animate={{ opacity: 1 }}
         transition={{ delay: 4, duration: 1.5 }}
         className="absolute inset-0 pointer-events-none"
+        style={{ opacity: merged ? 0 : 1, transition: 'opacity 0.15s' }}
       >
         {/* Orb 1 — left */}
         <motion.div
@@ -142,11 +146,18 @@ export default function IntroScreen() {
       {/* Big bang flash overlay */}
       {merged && (
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: [0, 1, 1, 0] }}
-          transition={{ duration: 1.2, times: [0, 0.2, 0.7, 1] }}
-          className="absolute inset-0 bg-white pointer-events-none z-50"
-        />
+          initial={{ opacity: 1 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.01 }}
+          className="absolute inset-0 bg-white pointer-events-none z-50 flex items-center justify-center"
+        >
+          <div
+            className="font-serif font-black lowercase"
+            style={{ color: '#050714', fontSize: 'clamp(4rem, 16vw, 12rem)' }}
+          >
+            big bang
+          </div>
+        </motion.div>
       )}
     </div>
   );

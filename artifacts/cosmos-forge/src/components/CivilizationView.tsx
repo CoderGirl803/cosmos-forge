@@ -181,6 +181,10 @@ export default function CivilizationView() {
   const stellarVisibility = Math.min(1, Math.max(0, (0.86 - zoom) / 0.28));
   const closePlanetView = zoom > 0.86;
   const systemOffsetX = closePlanetView ? -(playerOrbitR * zoom) : 0;
+  const incomingAsteroid = activeEvent?.id.startsWith('asteroid') || activeDisaster?.title.toLowerCase().includes('meteor');
+  const blackHoleProgress = blackHoleAlert ? Math.min(1, Math.max(0, (5 - blackHoleAlert.timeLeft) / 5)) : 0;
+  const blackHoleX = 420 + blackHoleProgress * 1050;
+  const blackHoleY = 520 + blackHoleProgress * 880;
 
   const getPlanetCenter = useCallback(() => {
     if (!planetBodyRef.current) return null;
@@ -466,8 +470,10 @@ export default function CivilizationView() {
             {/* Black hole (when alert active) */}
             {blackHoleAlert && zoom < 0.86 && (
               <motion.div
-                initial={{ opacity: 0, scale: 0.3 }} animate={{ opacity: 1, scale: 1 }}
-                style={{ position: 'absolute', left: 550, top: 550, zIndex: 3 }}
+                initial={{ opacity: 0, scale: 0.55 }}
+                animate={{ opacity: 1, scale: 0.8 + blackHoleProgress * 0.7 }}
+                transition={{ duration: 0.35 }}
+                style={{ position: 'absolute', left: blackHoleX, top: blackHoleY, zIndex: 8 }}
               >
                 {/* Accretion ring outer */}
                 <motion.div
@@ -497,8 +503,63 @@ export default function CivilizationView() {
                   position: 'absolute', top: 65, left: '50%', transform: 'translateX(-50%)',
                   color: 'rgba(220,38,38,0.65)', fontSize: 11, whiteSpace: 'nowrap', fontFamily: 'monospace',
                 }}>
-                  ⚫ singularity
+                  ⚫ singularity · {blackHoleAlert.timeLeft}s
                 </div>
+              </motion.div>
+            )}
+
+            {/* Incoming asteroid when asteroid events are active */}
+            {incomingAsteroid && zoom < 0.86 && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                style={{ position: 'absolute', left: C, top: C, zIndex: 9, pointerEvents: 'none' }}
+              >
+                <motion.div
+                  initial={{ x: -1500, y: -1120, scale: 1.35, rotate: -18 }}
+                  animate={{ x: playerOrbitR + 24, y: 10, scale: 0.75, rotate: 28 }}
+                  transition={{ duration: 5, ease: 'linear' }}
+                  style={{ position: 'absolute' }}
+                >
+                  <div
+                    style={{
+                      position: 'absolute',
+                      right: 16,
+                      top: 12,
+                      width: 230,
+                      height: 12,
+                      transform: 'rotate(-24deg)',
+                      transformOrigin: 'right center',
+                      background: 'linear-gradient(90deg, transparent, rgba(251,146,60,0.18), rgba(248,113,113,0.72))',
+                      filter: 'blur(3px)',
+                    }}
+                  />
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1.8, repeat: Infinity, ease: 'linear' }}
+                    style={{
+                      width: 52,
+                      height: 44,
+                      borderRadius: '45% 55% 48% 52%',
+                      background: 'radial-gradient(circle at 35% 28%, #fca5a5, #a16207 42%, #3f1d0b 78%)',
+                      boxShadow: '0 0 34px rgba(248,113,113,0.75), 0 0 80px rgba(251,146,60,0.32)',
+                    }}
+                  />
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: 54,
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      color: 'rgba(252,165,165,0.76)',
+                      fontSize: 11,
+                      fontFamily: 'monospace',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    ☄ incoming
+                  </div>
+                </motion.div>
               </motion.div>
             )}
 

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GameEvent } from '../data/gameData';
 import { useGameStore } from '../hooks/useGameStore';
@@ -39,6 +39,8 @@ function choiceMeta(totalChoices: number, idx: number, type: string): { label: s
 
 export default function EventPopup({ event }: { event: GameEvent | null }) {
   const { resolveEvent } = useGameStore();
+  const [countdown, setCountdown] = useState<number | null>(null);
+  const isAsteroidEvent = event?.id.startsWith('asteroid') ?? false;
   const choices = event?.choices && event.choices.length > 1
     ? event.choices
     : event?.type === 'paradox'
@@ -58,6 +60,34 @@ export default function EventPopup({ event }: { event: GameEvent | null }) {
         },
       ].slice(0, 4)
     : event?.choices ?? [];
+
+  useEffect(() => {
+    if (!isAsteroidEvent || !event) {
+      setCountdown(null);
+      return;
+    }
+
+    setCountdown(5);
+    const timer = window.setInterval(() => {
+      setCountdown(current => {
+        if (current === null) return current;
+        if (current <= 1) {
+          window.clearInterval(timer);
+          const fallback = event.choices?.[event.choices.length - 1];
+          if (fallback) {
+            window.setTimeout(() => {
+              const updates = fallback.action(useGameStore.getState());
+              resolveEvent(updates);
+            }, 0);
+          }
+          return 0;
+        }
+        return current - 1;
+      });
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [event, isAsteroidEvent, resolveEvent]);
 
   return (
     <AnimatePresence>
@@ -96,6 +126,24 @@ export default function EventPopup({ event }: { event: GameEvent | null }) {
             {event.type === 'paradox' && (
               <div className="mb-4 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold text-cyan-300" style={{ background: 'rgba(34,211,238,0.1)', border: '1px solid rgba(34,211,238,0.3)' }}>
                 🧠 philosophical paradox
+              </div>
+            )}
+            {isAsteroidEvent && countdown !== null && (
+              <div
+                className="mb-4 flex items-center justify-between gap-4 rounded-2xl px-4 py-3"
+                style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.35)' }}
+              >
+                <div className="text-left">
+                  <div className="text-xs uppercase tracking-[0.22em]" style={{ color: 'rgba(252,165,165,0.62)' }}>
+                    impact countdown
+                  </div>
+                  <div className="text-xs mt-1" style={{ color: 'rgba(255,255,255,0.46)' }}>
+                    zoom out to watch it cross the system
+                  </div>
+                </div>
+                <div className="font-mono text-4xl font-bold" style={{ color: '#f87171' }}>
+                  {countdown}s
+                </div>
               </div>
             )}
 

@@ -9,6 +9,47 @@ interface SentSignal { id: string; to: string; sentAt: number; response?: Signal
 
 interface TimedAlert { timeLeft: number; }
 interface BattleState { id: string; from: string; player: number; enemy: number; round: number; }
+interface AchievementToast { id: string; icon: string; title: string; reward: number; }
+
+const ACHIEVEMENTS = [
+  { id: 'spark', icon: '🦠', title: 'life sparked', reward: 75, test: (s: any) => s.population > 0 },
+  { id: 'moon', icon: '🌙', title: 'moon maker', reward: 90, test: (s: any) => s.moons.length >= 1 },
+  { id: 'signal', icon: '📡', title: 'voice in the void', reward: 85, test: (s: any) => s.signals.length >= 1 },
+  { id: 'shield', icon: '🛡️', title: 'sky wall', reward: 100, test: (s: any) => s.shieldLevel >= 1 },
+  { id: 'cities', icon: '🏛️', title: 'civilization rises', reward: 120, test: (s: any) => s.population >= 1_000_000_000 },
+  { id: 'space', icon: '🚀', title: 'left the cradle', reward: 150, test: (s: any) => s.era === 'cosmic' },
+  { id: 'cosmic_age', icon: '🌌', title: 'deep time survivor', reward: 180, test: (s: any) => s.year >= 5_000_000_000 },
+  { id: 'perfect_tech', icon: '🔬', title: 'perfect signal', reward: 160, test: (s: any) => s.tech >= 100 },
+] as const;
+
+function withRewards(state: any, updates: any, score = 0, streak = 0) {
+  const next = { ...state, ...updates };
+  const unlocked = new Set<string>(state.unlockedAchievements ?? []);
+  const fresh = ACHIEVEMENTS.filter(a => !unlocked.has(a.id) && a.test(next));
+  const reward = fresh.reduce((sum, a) => sum + a.reward, 0);
+  const achievementToast = fresh.length
+    ? { id: fresh[fresh.length - 1].id, icon: fresh[fresh.length - 1].icon, title: fresh[fresh.length - 1].title, reward: fresh[fresh.length - 1].reward }
+    : state.achievementToast;
+
+  const result: any = {
+    ...updates,
+    cosmicScore: Math.max(0, state.cosmicScore + score + reward),
+    streak: streak > 0 ? state.streak + streak : state.streak,
+    unlockedAchievements: [...unlocked, ...fresh.map(a => a.id)],
+    achievementToast,
+  };
+
+  if (fresh.length || updates.logs) {
+    result.logs = fresh.length
+      ? [
+          ...fresh.map(a => ({ id: Math.random().toString(36), time: `yr ${fmtYear(next.year)}`, text: `${a.icon} achievement unlocked: ${a.title} (+${a.reward})` })),
+          ...(updates.logs ?? state.logs),
+        ].slice(0, 80)
+      : updates.logs;
+  }
+
+  return result;
+}
 
 interface GameState {
   phase: GamePhase;
@@ -41,6 +82,10 @@ interface GameState {
   recentDisasters: string[];
   battleCount: number;
   activeBattle: BattleState | null;
+  cosmicScore: number;
+  streak: number;
+  unlockedAchievements: string[];
+  achievementToast: AchievementToast | null;
 
   setPhase: (phase: GamePhase) => void;
   addLog: (text: string) => void;
@@ -56,6 +101,7 @@ interface GameState {
   dismissSignalResponse: () => void;
   engageSignalBattle: () => void;
   resolveBattleChoice: (choice: 'charge' | 'shield' | 'tech') => void;
+  dismissAchievementToast: () => void;
   dismissDisaster: () => void;
   addMoon: (moon: Moon) => void;
   escapeBlackHole: () => void;
@@ -97,6 +143,10 @@ const mkInitial = () => ({
   recentDisasters: [] as string[],
   battleCount: 0,
   activeBattle: null as BattleState | null,
+  cosmicScore: 0,
+  streak: 0,
+  unlockedAchievements: [] as string[],
+  achievementToast: null as AchievementToast | null,
 });
 
 function getDeathReason(eventId: string | undefined, era: Era): string {
@@ -134,7 +184,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     return { logs: [{ id: Math.random().toString(36), time, text }, ...state.logs].slice(0, 80) };
   }),
 
-  updateStats: (updates) => set((state) => ({ ...state, ...updates })),
+  updateStats: (updates) => set((state) => withRewards(state, updates)),
   setPlanetName: (name) => set({ planetName: name }),
   setStarName: (name) => set({ starName: name }),
 
@@ -263,7 +313,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       if (!updates.deathReason) updates.deathReason = getDeathReason(undefined, state.era);
     }
 
-    return updates;
+    return withRewards(state, updates, years >= 1_000_000_000 ? 8 : years >= 1_000_000 ? 4 : 1);
   }),
 
   completeSuggestion: (id) => set((state) => {
@@ -271,11 +321,11 @@ export const useGameStore = create<GameState>((set, get) => ({
     if (!suggestion) return state;
     const effects = suggestion.effect(state) as any;
     delete effects.win;
-    return {
+    return withRewards(state, {
       suggestions: state.suggestions.map(s => s.id === id ? { ...s, completed: true } : s),
       ...effects,
       logs: [{ id: Math.random().toString(36), time: `yr ${fmtYear(state.year)}`, text: `✨ ${suggestion.title} achieved!` }, ...state.logs].slice(0, 80),
-    };
+    }, 35, 1);
   }),
 
   resolveEvent: (updates) => set((state) => {
@@ -286,16 +336,16 @@ export const useGameStore = create<GameState>((set, get) => ({
       next.phase = 'lose';
       next.deathReason = raw.deathReason || getDeathReason(state.activeEvent?.id, state.era);
     }
-    return next;
+    return withRewards(state, next, next.phase === 'lose' ? 0 : 25, next.phase === 'lose' ? 0 : 1);
   }),
 
   dismissDisaster: () => set({ activeDisaster: null }),
-  addMoon: (moon) => set((state) => ({ moons: [...state.moons, moon] })),
+  addMoon: (moon) => set((state) => withRewards(state, { moons: [...state.moons, moon] }, 45, 1)),
 
-  escapeBlackHole: () => set((state) => ({
+  escapeBlackHole: () => set((state) => withRewards(state, {
     blackHoleAlert: null,
     logs: [{ id: Math.random().toString(36), time: `yr ${fmtYear(state.year)}`, text: '⚡ emergency thrust! your planet escaped the black hole.' }, ...state.logs].slice(0, 80),
-  })),
+  }, 90, 1)),
   tickBlackHole: () => set((state) => {
     if (!state.blackHoleAlert) return state;
     const newTime = state.blackHoleAlert.timeLeft - 1;
@@ -303,12 +353,12 @@ export const useGameStore = create<GameState>((set, get) => ({
     return { blackHoleAlert: { timeLeft: newTime } };
   }),
 
-  escapePandemic: () => set((state) => ({
+  escapePandemic: () => set((state) => withRewards(state, {
     pandemicAlert: null,
     population: Math.floor(state.population * 0.92),
     health: Math.max(0, state.health - 8),
     logs: [{ id: Math.random().toString(36), time: `yr ${fmtYear(state.year)}`, text: '🔬 cure deployed! pandemic contained — but not without cost.' }, ...state.logs].slice(0, 80),
-  })),
+  }, 75, 1)),
   tickPandemic: () => set((state) => {
     if (!state.pandemicAlert) return state;
     const newTime = state.pandemicAlert.timeLeft - 1;
@@ -320,11 +370,11 @@ export const useGameStore = create<GameState>((set, get) => ({
     return { pandemicAlert: { timeLeft: newTime } };
   }),
 
-  escapeNuclear: () => set((state) => ({
+  escapeNuclear: () => set((state) => withRewards(state, {
     nuclearAlert: null,
     energy: Math.max(0, state.energy - 25),
     logs: [{ id: Math.random().toString(36), time: `yr ${fmtYear(state.year)}`, text: '🛡️ missiles intercepted! defense grid held — barely.' }, ...state.logs].slice(0, 80),
-  })),
+  }, 85, 1)),
   tickNuclear: () => set((state) => {
     if (!state.nuclearAlert) return state;
     const newTime = state.nuclearAlert.timeLeft - 1;
@@ -339,10 +389,10 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   sendSignal: (targetPlanet) => {
     const id = Math.random().toString(36).slice(2);
-    set((state) => ({
+    set((state) => withRewards(state, {
       signals: [{ id, to: targetPlanet, sentAt: Date.now(), responded: false }, ...state.signals],
       logs: [{ id: Math.random().toString(36), time: `yr ${fmtYear(state.year)}`, text: `📡 signal transmitted to ${targetPlanet}...` }, ...state.logs].slice(0, 80),
-    }));
+    }, 10));
     return id;
   },
 
@@ -405,12 +455,12 @@ export const useGameStore = create<GameState>((set, get) => ({
       : '🚀 fleet charged the alien line';
 
     if (nextEnemy <= 0) {
-      return {
+      return withRewards(state, {
         activeBattle: null,
         tech: Math.min(100, state.tech + 4),
         energy: Math.max(0, state.energy - (choice === 'tech' ? 14 : 8)),
         logs: [{ id: Math.random().toString(36), time: `yr ${fmtYear(state.year)}`, text: `${logText}. victory against ${battle.from}.` }, ...state.logs].slice(0, 80),
-      };
+      }, 140, 1);
     }
     if (nextPlayer <= 0 || battle.round >= 3) {
       const savedByDamage = nextEnemy < battle.enemy * 0.35;
@@ -430,6 +480,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       logs: [{ id: Math.random().toString(36), time: `yr ${fmtYear(state.year)}`, text: `${logText}. armies still fighting.` }, ...state.logs].slice(0, 80),
     };
   }),
+
+  dismissAchievementToast: () => set({ achievementToast: null }),
 
   resetGame: () => set(mkInitial()),
 }));

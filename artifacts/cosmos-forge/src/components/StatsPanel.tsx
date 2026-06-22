@@ -6,6 +6,7 @@ export default function StatsPanel() {
     population, food, energy, tech, health, year, era,
     planetLevel, shieldLevel, greenhouse, starStatus,
     planetName, setPlanetName, starName, setStarName,
+    cosmicScore, streak, unlockedAchievements,
   } = useGameStore();
 
   const [editingPlanet, setEditingPlanet] = useState(false);
@@ -113,6 +114,20 @@ export default function StatsPanel() {
             style={{ background: 'rgba(148,163,184,0.08)', border: '1px solid rgba(148,163,184,0.18)', color: 'rgba(203,213,225,0.75)' }}>
             planet lv {planetLevel}
           </div>
+        </div>
+
+        <div className="grid grid-cols-3 gap-2">
+          {[
+            { label: 'score', value: cosmicScore.toLocaleString(), color: '#fbbf24' },
+            { label: 'streak', value: `${streak}x`, color: '#22d3ee' },
+            { label: 'badges', value: `${unlockedAchievements.length}/8`, color: '#a78bfa' },
+          ].map(item => (
+            <div key={item.label} className="rounded-lg px-2 py-2 text-center"
+              style={{ background: `${item.color}10`, border: `1px solid ${item.color}30` }}>
+              <div className="text-sm font-bold" style={{ color: item.color }}>{item.value}</div>
+              <div className="text-[10px] uppercase tracking-wide text-white/35">{item.label}</div>
+            </div>
+          ))}
         </div>
 
         {/* Stats */}

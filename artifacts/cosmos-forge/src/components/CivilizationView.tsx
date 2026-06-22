@@ -109,6 +109,8 @@ export default function CivilizationView() {
     pandemicAlert, escapePandemic, tickPandemic,
     nuclearAlert, escapeNuclear, tickNuclear,
     activeBattle,
+    achievementToast, dismissAchievementToast,
+    streak,
     sendSignal, deliverSignalResponse,
   } = useGameStore();
 
@@ -148,6 +150,11 @@ export default function CivilizationView() {
       setPan({ x: 0, y: 0 });
     }
   }, [activeBattle]);
+  useEffect(() => {
+    if (!achievementToast) return;
+    const t = setTimeout(dismissAchievementToast, 3200);
+    return () => clearTimeout(t);
+  }, [achievementToast, dismissAchievementToast]);
 
   // Alert pulse
   const activeAlert = blackHoleAlert ?? pandemicAlert ?? nuclearAlert;
@@ -328,6 +335,30 @@ export default function CivilizationView() {
       <div className="absolute top-3 left-1/2 -translate-x-1/2 z-40">
         <SignalPanel />
       </div>
+
+      <AnimatePresence>
+        {achievementToast && (
+          <motion.div
+            key={achievementToast.id}
+            initial={{ opacity: 0, y: -24, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -18, scale: 0.92 }}
+            className="absolute top-14 left-1/2 -translate-x-1/2 z-50 rounded-2xl px-5 py-3 text-center"
+            style={{
+              background: 'rgba(5,7,20,0.92)',
+              border: '1px solid rgba(251,191,36,0.35)',
+              boxShadow: '0 0 45px rgba(251,191,36,0.18), 0 0 90px rgba(34,211,238,0.08)',
+              backdropFilter: 'blur(12px)',
+            }}
+          >
+            <div className="text-xs uppercase tracking-[0.22em]" style={{ color: 'rgba(251,191,36,0.62)' }}>achievement unlocked</div>
+            <div className="mt-1 text-lg font-bold text-white">
+              {achievementToast.icon} {achievementToast.title}
+            </div>
+            <div className="text-xs mt-1" style={{ color: 'rgba(34,211,238,0.72)' }}>+{achievementToast.reward} cosmic score</div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <div className="flex-1 flex overflow-hidden z-10 relative" style={{ paddingTop: alertInfo ? 64 : 0 }}>
         <StatsPanel />
@@ -893,6 +924,15 @@ export default function CivilizationView() {
         </button>
 
         <div className="w-px h-6 bg-white/10 mx-1" />
+
+        <div className="px-3 py-1.5 rounded-full text-xs font-semibold"
+          style={{
+            color: streak >= 5 ? '#fbbf24' : '#94a3b8',
+            background: streak >= 5 ? 'rgba(251,191,36,0.12)' : 'rgba(148,163,184,0.08)',
+            border: `1px solid ${streak >= 5 ? 'rgba(251,191,36,0.35)' : 'rgba(148,163,184,0.18)'}`,
+          }}>
+          streak {streak}x
+        </div>
 
         {([
           { label: '+100 yrs', years: 100, color: '#94a3b8' },

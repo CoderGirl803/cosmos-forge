@@ -7,6 +7,18 @@ interface Props { reason: string; onRestart: () => void; }
 const COLS = 5;
 const ROWS = 4;
 const RUNS_KEY = 'cosmos-forge-runs';
+const REFERENCE_UNIVERSE_YEARS = [
+  120_000,
+  18_000_000,
+  340_000_000,
+  1_200_000_000,
+  2_800_000_000,
+  3_900_000_000,
+  4_450_000_000,
+  4_900_000_000,
+  6_300_000_000,
+  9_200_000_000,
+];
 
 function makeShards() {
   return Array.from({ length: COLS * ROWS }, (_, i) => {
@@ -54,11 +66,12 @@ export default function DeathScreen({ reason, onRestart }: Props) {
     // Save this run and compute percentile
     const prev = JSON.parse(localStorage.getItem(RUNS_KEY) || '[]') as number[];
     const allRuns = [...prev, year];
+    const comparisonRuns = [...REFERENCE_UNIVERSE_YEARS, ...prev];
     localStorage.setItem(RUNS_KEY, JSON.stringify(allRuns.slice(-500)));
-    const shorter = prev.filter(y => y < year).length;
-    const pct = prev.length > 0 ? Math.round((shorter / prev.length) * 100) : 50;
+    const shorter = comparisonRuns.filter(y => y < year).length;
+    const pct = Math.round((shorter / comparisonRuns.length) * 100);
     setPercentile(pct);
-    setTotalRuns(allRuns.length);
+    setTotalRuns(comparisonRuns.length + 1);
 
     const t1 = setTimeout(() => setStep(1), 700);
     const t2 = setTimeout(() => setStep(2), 1600);
@@ -123,11 +136,11 @@ export default function DeathScreen({ reason, onRestart }: Props) {
                   <span style={{ color: 'rgba(34,211,238,0.8)' }}>{formatYear(year)}</span>
                 </div>
 
-                {percentile !== null && totalRuns > 1 && (
+                {percentile !== null && (
                   <div className="text-sm font-mono" style={{ color: 'rgba(255,255,255,0.28)' }}>
-                    you outlasted{' '}
+                    you survived more than{' '}
                     <span style={{ color: percentile >= 50 ? 'rgba(34,197,94,0.7)' : 'rgba(251,191,36,0.7)' }}>
-                      {percentile}% of civilizations
+                      {percentile}% of universes
                     </span>
                     {' '}({totalRuns} total recorded)
                   </div>

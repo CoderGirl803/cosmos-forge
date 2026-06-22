@@ -74,11 +74,16 @@ const SOLAR_OBJS: SolarObj[] = [
 ];
 
 const GALAXIES = [
-  { id: 'andara veil', x: 18, y: 22, size: 120, rot: -18 },
-  { id: 'milk glass spiral', x: 72, y: 18, size: 160, rot: 24 },
-  { id: 'quiet chorus', x: 82, y: 72, size: 130, rot: -35 },
-  { id: 'sen cluster', x: 30, y: 78, size: 105, rot: 12 },
-  { id: 'dark forest lane', x: 52, y: 48, size: 190, rot: 40 },
+  { id: 'lullaby spiral', x: 18, y: 22, size: 120, rot: -18 },
+  { id: 'violet spoon', x: 72, y: 18, size: 160, rot: 24 },
+  { id: 'paper lantern sea', x: 82, y: 72, size: 130, rot: -35 },
+  { id: 'sens hiding place', x: 30, y: 78, size: 105, rot: 12 },
+  { id: 'the almost home galaxy', x: 52, y: 48, size: 190, rot: 40 },
+];
+
+const ROGUE_BLACK_HOLES = [
+  { id: 'bh-1', x: 14, y: 62, size: 62 },
+  { id: 'bh-2', x: 88, y: 34, size: 42 },
 ];
 
 function lifeColor(pct: number) {
@@ -189,8 +194,18 @@ export default function CivilizationView() {
     const dist = Math.hypot(info.point.x - center.x, info.point.y - center.y);
     if (dist < 130) {
       setCapturedRocks(prev => new Set([...prev, rock.id]));
-      addMoon({ id: rock.id, color: rock.color, size: Math.max(5, rock.size * 0.45), orbitSpeed: 0.5 + Math.random() * 1.2 });
-      addLog(`🌙 ${rock.label} captured — now orbiting ${planetName}!`);
+      const becameAsteroid = Math.random() < (rock.size > 28 ? 0.42 : 0.24);
+      if (becameAsteroid) {
+        const current = useGameStore.getState();
+        current.updateStats({
+          health: Math.max(0, current.health - (rock.size > 28 ? 12 : 6)),
+          orbitDecay: Math.min(1, current.orbitDecay + 0.025),
+        });
+        addLog(`☄️ ${rock.label} slipped into a dangerous orbit. asteroid risk increased.`);
+      } else {
+        addMoon({ id: rock.id, color: rock.color, size: Math.max(5, rock.size * 0.45), orbitSpeed: 0.5 + Math.random() * 1.2 });
+        addLog(`🌙 ${rock.label} captured — now orbiting ${planetName}!`);
+      }
     }
   }, [getPlanetCenter, addMoon, addLog, planetName]);
 
@@ -341,6 +356,23 @@ export default function CivilizationView() {
                   </div>
                 )}
               </div>
+            ))}
+            {ROGUE_BLACK_HOLES.map((hole, index) => (
+              <motion.div
+                key={hole.id}
+                animate={{ rotate: index % 2 === 0 ? 360 : -360 }}
+                transition={{ duration: 12 + index * 5, repeat: Infinity, ease: 'linear' }}
+                className="absolute rounded-full"
+                style={{
+                  left: `${hole.x}%`,
+                  top: `${hole.y}%`,
+                  width: hole.size,
+                  height: hole.size,
+                  transform: 'translate(-50%, -50%)',
+                  background: 'radial-gradient(circle, #000 0%, #000 45%, rgba(251,146,60,0.28) 56%, rgba(34,211,238,0.08) 70%, transparent 100%)',
+                  boxShadow: '0 0 36px rgba(0,0,0,0.9), 0 0 22px rgba(251,146,60,0.16)',
+                }}
+              />
             ))}
           </div>
           {/* Solar system container */}
@@ -662,6 +694,11 @@ export default function CivilizationView() {
                 <motion.div
                   key={rock.id}
                   drag dragSnapToOrigin dragMomentum={false}
+                  animate={{
+                    x: [0, rock.size * 0.25, 0, -rock.size * 0.18, 0],
+                    y: [0, -rock.size * 0.18, 0, rock.size * 0.22, 0],
+                  }}
+                  transition={{ duration: 5 + rock.size / 8, repeat: Infinity, ease: 'easeInOut' }}
                   whileDrag={{ scale: 1.2, zIndex: 30, cursor: 'grabbing' }}
                   onDragEnd={(_, info) => handleRockDragEnd(rock, info)}
                   style={{
@@ -695,8 +732,7 @@ export default function CivilizationView() {
                 exit={{ opacity: 0, scale: 0.85 }}
                 onClick={e => e.stopPropagation()}
                 style={{
-                  position: 'absolute', top: '50%', right: 60,
-                  transform: 'translateY(-50%)',
+                  position: 'absolute', top: 24, right: 60,
                   zIndex: 40,
                   background: 'rgba(10,11,30,0.97)',
                   border: '1.5px solid rgba(124,58,237,0.5)',
@@ -704,6 +740,7 @@ export default function CivilizationView() {
                   padding: '18px 20px',
                   boxShadow: '0 0 40px rgba(124,58,237,0.25)',
                   minWidth: 200,
+                  maxWidth: 240,
                 }}
               >
                 <div className="text-white font-semibold text-sm mb-1">{clickedPlanet.label}</div>

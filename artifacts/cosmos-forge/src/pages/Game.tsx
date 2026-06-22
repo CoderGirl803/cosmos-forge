@@ -102,6 +102,41 @@ function SoftMusic() {
   return null;
 }
 
+function BigBangFlash() {
+  const letters = 'big bang'.split('');
+
+  return (
+    <motion.div
+      key="bigbang"
+      initial={{ opacity: 1 }}
+      animate={{ opacity: [1, 1, 0] }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.42, times: [0, 0.72, 1] }}
+      className="absolute inset-0 z-50 flex items-center justify-center bg-white"
+    >
+      <div
+        className="font-serif font-black lowercase tracking-normal"
+        style={{
+          color: '#050714',
+          fontSize: 'clamp(4.5rem, 17vw, 13rem)',
+          textShadow: '0 0 28px rgba(5,7,20,0.18)',
+        }}
+      >
+        {letters.map((letter, index) => (
+          <motion.span
+            key={`${letter}-${index}`}
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.035, duration: 0.035 }}
+          >
+            {letter === ' ' ? '\u00a0' : letter}
+          </motion.span>
+        ))}
+      </div>
+    </motion.div>
+  );
+}
+
 export default function Game() {
   const { phase, resetGame, deathReason } = useGameStore();
   const [senHovered, setSenHovered] = useState(false);
@@ -112,7 +147,7 @@ export default function Game() {
       <CursorTrail />
       {phase !== 'bigbang' && phase !== 'lose' && (
         <div
-          className="fixed bottom-3 right-3 z-[80]"
+          className="fixed bottom-1 right-1 z-[80] opacity-55 hover:opacity-100 transition-opacity"
           onMouseEnter={() => setSenHovered(true)}
           onMouseLeave={() => setSenHovered(false)}
         >
@@ -127,14 +162,14 @@ export default function Game() {
                 backdropFilter: 'blur(10px)',
               }}
             >
-              ☺
+              hi, im sen.
             </div>
           )}
           <div
-            className="rounded-full p-1.5"
-            style={{ background: 'rgba(5,7,20,0.58)', border: '1px solid rgba(255,255,255,0.08)', backdropFilter: 'blur(10px)' }}
+            className="rounded-full p-1"
+            style={{ background: 'rgba(5,7,20,0.32)', border: '1px solid rgba(255,255,255,0.06)', backdropFilter: 'blur(10px)' }}
           >
-            <img src="/sen-icon.svg" alt="sen" width={34} height={34} style={{ imageRendering: 'pixelated' }} />
+            <img src="/sen-icon.svg" alt="sen" width={28} height={28} style={{ imageRendering: 'pixelated' }} />
           </div>
         </div>
       )}
@@ -146,16 +181,7 @@ export default function Game() {
           </motion.div>
         )}
 
-        {phase === 'bigbang' && (
-          <motion.div
-            key="bigbang"
-            initial={{ opacity: 1 }}
-            animate={{ opacity: [1, 1, 0] }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.35, times: [0, 0.6, 1] }}
-            className="absolute inset-0 z-50 bg-white"
-          />
-        )}
+        {phase === 'bigbang' && <BigBangFlash />}
 
         {phase === 'particles' && (
           <motion.div key="particles" initial={{ opacity: 0 }} animate={{ opacity: 1 }}

@@ -21,8 +21,8 @@ export default function IntroScreen() {
       setMerged(true);
       setTimeout(() => {
         setPhase('bigbang');
-        setTimeout(() => setPhase('particles'), 1500);
-      }, 400);
+        setTimeout(() => setPhase('particles'), 620);
+      }, 120);
     }
   };
 
@@ -143,11 +143,18 @@ export default function IntroScreen() {
       {/* Big bang flash overlay */}
       {merged && (
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: [0, 1, 1, 0] }}
-          transition={{ duration: 1.2, times: [0, 0.2, 0.7, 1] }}
-          className="absolute inset-0 bg-white pointer-events-none z-50"
-        />
+          initial={{ opacity: 1 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.01 }}
+          className="absolute inset-0 bg-white pointer-events-none z-50 flex items-center justify-center"
+        >
+          <div
+            className="font-serif font-black lowercase"
+            style={{ color: '#050714', fontSize: 'clamp(4rem, 16vw, 12rem)' }}
+          >
+            big bang
+          </div>
+        </motion.div>
       )}
     </div>
   );
